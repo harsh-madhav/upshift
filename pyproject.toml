@@ -1,0 +1,27 @@
+[project]
+name = "upshift"
+version = "0.1.0"
+description = "An agent that fixes the code a dependency or API version change breaks."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "boto3>=1.35",
+    "openai>=1.50",
+    "httpx>=0.27",
+    "neatlogs>=0.8",
+    "packaging>=24",
+    "anthropic>=1.13.0",
+]
+
+[project.scripts]
+upshift = "upshift.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

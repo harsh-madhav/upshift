@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.upshift/
+.pytest_cache/
+
+# secrets: keys live only in .env, which is never committed
+.env
+.env.*
+!.env.example

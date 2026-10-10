@@ -1,0 +1,4 @@
+pydantic==1.10.13
+jinja2==2.11.3
+markupsafe==2.0.1  # jinja2 2.11 imports soft_unicode, which markupsafe 2.1 removed
+requests==2.31.0

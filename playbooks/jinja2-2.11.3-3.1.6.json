@@ -1,0 +1,127 @@
+{
+  "package": "jinja2",
+  "old": "2.11.3",
+  "new": "3.1.6",
+  "summary": "Jinja2 3.x removes a number of long-deprecated APIs and folds some old extensions into the core compiler. The highest-impact migration issues are import/decorator renames, MarkupSafe import moves, removal of the old async patching module, and a few behavioral/template-level changes around built-in extensions and stricter security checks in filters such as xmlattr.",
+  "rules": [
+    {
+      "old": "from jinja2 import Markup\nvalue = Markup(html)",
+      "new": "from markupsafe import Markup\nvalue = Markup(html)",
+      "detect": "from\\s+jinja2\\s+import\\s+.*\\bMarkup\\b|\\bjinja2\\.Markup\\b",
+      "why": "Markup is no longer exported by Jinja and must be imported from MarkupSafe.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    },
+    {
+      "old": "from jinja2 import escape\nsafe = escape(value)",
+      "new": "from markupsafe import escape\nsafe = escape(value)",
+      "detect": "from\\s+jinja2\\s+import\\s+.*\\bescape\\b|\\bjinja2\\.escape\\b",
+      "why": "escape is no longer exported by Jinja and must be imported from MarkupSafe.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    },
+    {
+      "old": "from jinja2 import contextfilter\n\n@contextfilter\ndef myfilter(ctx, value):\n    ...",
+      "new": "from jinja2 import pass_context\n\n@pass_context\ndef myfilter(ctx, value):\n    ...",
+      "detect": "\\bcontextfilter\\b",
+      "why": "The old contextfilter decorator was removed in favor of the unified pass_context decorator.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    },
+    {
+      "old": "from jinja2 import contextfunction\n\n@contextfunction\ndef helper(ctx, value):\n    ...",
+      "new": "from jinja2 import pass_context\n\n@pass_context\ndef helper(ctx, value):\n    ...",
+      "detect": "\\bcontextfunction\\b",
+      "why": "The old contextfunction decorator was removed in favor of the unified pass_context decorator.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    },
+    {
+      "old": "from jinja2 import evalcontextfilter\n\n@evalcontextfilter\ndef myfilter(eval_ctx, value):\n    ...",
+      "new": "from jinja2 import pass_eval_context\n\n@pass_eval_context\ndef myfilter(eval_ctx, value):\n    ...",
+      "detect": "\\bevalcontextfilter\\b",
+      "why": "The old evalcontextfilter decorator was removed in favor of pass_eval_context.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    },
+    {
+      "old": "from jinja2 import evalcontextfunction\n\n@evalcontextfunction\ndef helper(eval_ctx, value):\n    ...",
+      "new": "from jinja2 import pass_eval_context\n\n@pass_eval_context\ndef helper(eval_ctx, value):\n    ...",
+      "detect": "\\bevalcontextfunction\\b",
+      "why": "The old evalcontextfunction decorator was removed in favor of pass_eval_context.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    },
+    {
+      "old": "from jinja2 import environmentfilter\n\n@environmentfilter\ndef myfilter(env, value):\n    ...",
+      "new": "from jinja2 import pass_environment\n\n@pass_environment\ndef myfilter(env, value):\n    ...",
+      "detect": "\\benvironmentfilter\\b",
+      "why": "The old environmentfilter decorator was removed in favor of pass_environment.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    },
+    {
+      "old": "from jinja2 import environmentfunction\n\n@environmentfunction\ndef helper(env, value):\n    ...",
+      "new": "from jinja2 import pass_environment\n\n@pass_environment\ndef helper(env, value):\n    ...",
+      "detect": "\\benvironmentfunction\\b",
+      "why": "The old environmentfunction decorator was removed in favor of pass_environment.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    },
+    {
+      "old": "from jinja2.filters import unicode_urlencode\nqs = unicode_urlencode(value)",
+      "new": "from jinja2.utils import url_quote\nqs = url_quote(value)",
+      "detect": "\\bunicode_urlencode\\b",
+      "why": "unicode_urlencode was renamed to url_quote and the old name was removed.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    },
+    {
+      "old": "class MyContext(Context):\n    def resolve(self, key):\n        ...",
+      "new": "class MyContext(Context):\n    def resolve_or_missing(self, key):\n        ...",
+      "detect": "def\\s+resolve\\s*\\(",
+      "why": "Legacy Context subclass resolution by overriding resolve is no longer supported; override resolve_or_missing instead.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    },
+    {
+      "old": "from jinja2.ext import autoescape\n\nEnvironment(extensions=['jinja2.ext.autoescape'])",
+      "new": "Environment()",
+      "detect": "jinja2\\.ext\\.autoescape|from\\s+jinja2\\.ext\\s+import\\s+autoescape",
+      "why": "The autoescape extension became built-in and the old extension entry point was removed.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    },
+    {
+      "old": "from jinja2.ext import with_\n\nEnvironment(extensions=['jinja2.ext.with_'])",
+      "new": "Environment()",
+      "detect": "jinja2\\.ext\\.with_|from\\s+jinja2\\.ext\\s+import\\s+with_",
+      "why": "The with extension became built-in and the old extension entry point was removed.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    },
+    {
+      "old": "import jinja2.asyncsupport as asyncsupport\nasyncsupport.patch_all()",
+      "new": "env = jinja2.Environment(enable_async=True)",
+      "detect": "\\bjinja2\\.asyncsupport\\b|\\bpatch_all\\s*\\(",
+      "why": "Async support no longer uses the old patching module; enable it explicitly on the Environment instead.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-0-0"
+    },
+    {
+      "old": "Environment(extensions=[\"jinja2.ext.autoescape\", \"jinja2.ext.with_\"])",
+      "new": "Environment()",
+      "detect": "extensions\\s*=\\s*\\[[^\\]]*jinja2\\.ext\\.(autoescape|with_)[^\\]]*\\]",
+      "why": "These legacy extensions are built into Jinja and specifying their removed extension paths will fail.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    },
+    {
+      "old": "{{ attrs|xmlattr }}  {# where attrs may contain keys like 'data x', 'a/b', 'a>b', or 'a=b' #}",
+      "new": "{{ sanitized_attrs|xmlattr }}",
+      "detect": "",
+      "why": "xmlattr now rejects attribute keys containing spaces and, in later 3.1.x releases, also '/', '>', and '=' for security reasons.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-4"
+    },
+    {
+      "old": "Environment(enable_async=True)  # plus old runtime patching expectations",
+      "new": "Environment(enable_async=True)",
+      "detect": "",
+      "why": "Jinja 3 removed the old asyncsupport patching APIs entirely, so code must rely on native async support only.",
+      "source": "api-diff"
+    },
+    {
+      "old": "# Running on Python 3.6\nimport jinja2",
+      "new": "# Upgrade runtime to Python 3.7+\nimport jinja2",
+      "detect": "",
+      "why": "Jinja 3.1 dropped support for Python 3.6, so projects pinned to that interpreter must upgrade Python first.",
+      "source": "https://jinja.palletsprojects.com/changes/#version-3-1-0"
+    }
+  ]
+}
