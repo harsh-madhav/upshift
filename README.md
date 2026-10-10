@@ -1,6 +1,4 @@
 # upshift
-<<<<<<< HEAD
-=======
 
 Dependabot opens the PR. Upshift makes it pass.
 
@@ -83,4 +81,3 @@ uv run pytest
 ```
 
 The fix-loop tests drive the real loop (repo, venv, pytest, git) with a scripted model in place of a real one.
->>>>>>> 350d043 (Upshift: agent that fixes the code a version change breaks)
