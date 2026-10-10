@@ -94,3 +94,7 @@ cool, committed
 ---
 
 done, rebased and pushed but check readme it has conflicts
+
+---
+
+oay we have this as well https://neatlogs.com/hackathon/models, and I have the api key to extend support for this as well
