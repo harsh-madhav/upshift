@@ -1,0 +1,60 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4JQME4M39XM79C2HTVS5WFG",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 15,
+  "files_touched": [
+    ".env.example",
+    ".gitignore",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "demo/shop_app/requirements.txt",
+    "demo/shop_app/shop/__init__.py",
+    "demo/shop_app/shop/models.py",
+    "demo/shop_app/shop/orders.py",
+    "demo/shop_app/shop/receipts.py",
+    "demo/shop_app/tests/__init__.py",
+    "demo/shop_app/tests/test_orders.py",
+    "demo/shop_app/tests/test_receipts.py",
+    "playbooks/jinja2-2.11.3-3.1.6.json",
+    "playbooks/pydantic-1.10.13-2.14.0.json",
+    "pyproject.toml",
+    "scripts/check_secrets.py",
+    "tests/test_fix_loop.py",
+    "tests/test_llm.py",
+    "tests/test_vuln.py",
+    "tests/test_workspace.py",
+    "upshift/__init__.py",
+    "upshift/agent.py",
+    "upshift/apidiff_probe.py",
+    "upshift/cli.py",
+    "upshift/graph.py",
+    "upshift/llm.py",
+    "upshift/pipeline.py",
+    "upshift/playbook.py",
+    "upshift/research.py",
+    "upshift/state.py",
+    "upshift/tracing.py",
+    "upshift/vuln.py",
+    "upshift/workspace.py",
+    "uv.lock"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 438,
+    "cache_creation_tokens": 633729,
+    "cache_read_tokens": 48005463,
+    "output_tokens": 287003,
+    "api_call_count": 218
+  }
+}

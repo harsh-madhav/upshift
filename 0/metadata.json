@@ -1,0 +1,479 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4JQME4M39XM79C2HTVS5WFG",
+  "session_id": "71258822-6961-47db-a447-4aa7f7beced4",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-10T11:02:25.629808Z",
+  "branch": "main",
+  "checkpoints_count": 15,
+  "save_step_count": 15,
+  "files_touched": [
+    ".env.example",
+    ".gitignore",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "demo/shop_app/requirements.txt",
+    "demo/shop_app/shop/__init__.py",
+    "demo/shop_app/shop/models.py",
+    "demo/shop_app/shop/orders.py",
+    "demo/shop_app/shop/receipts.py",
+    "demo/shop_app/tests/__init__.py",
+    "demo/shop_app/tests/test_orders.py",
+    "demo/shop_app/tests/test_receipts.py",
+    "playbooks/jinja2-2.11.3-3.1.6.json",
+    "playbooks/pydantic-1.10.13-2.14.0.json",
+    "pyproject.toml",
+    "scripts/check_secrets.py",
+    "tests/test_fix_loop.py",
+    "tests/test_llm.py",
+    "tests/test_vuln.py",
+    "tests/test_workspace.py",
+    "upshift/__init__.py",
+    "upshift/agent.py",
+    "upshift/apidiff_probe.py",
+    "upshift/cli.py",
+    "upshift/graph.py",
+    "upshift/llm.py",
+    "upshift/pipeline.py",
+    "upshift/playbook.py",
+    "upshift/research.py",
+    "upshift/state.py",
+    "upshift/tracing.py",
+    "upshift/vuln.py",
+    "upshift/workspace.py",
+    "uv.lock"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "0b25a86058d1",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 438,
+    "cache_creation_tokens": 633729,
+    "cache_read_tokens": 48005463,
+    "output_tokens": 287003,
+    "api_call_count": 218
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_012yDVxCwA8Erk1nUJGUXinp",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "claude-api"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "0b25a86058d1",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 1896,
+        "end": 1897,
+        "entry_ids": [
+          "e5da1f14-9bcd-4164-9387-80f4b62a8d6d"
+        ],
+        "tool_use_id": "toolu_012yDVxCwA8Erk1nUJGUXinp"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_012yDVxCwA8Erk1nUJGUXinp"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: claude-api",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 15
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-10T11:02:25.483024Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 7231,
+    "human_modified": 365,
+    "human_removed": 0,
+    "total_committed": 7231,
+    "total_lines_changed": 7596,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 2522,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        "AGENTS.md": 6,
+        "CLAUDE.md": 6,
+        "assets/upshift-tools.html": 172,
+        "pyproject.toml": 25,
+        "uv.lock": 2212
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 101,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4162,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 101,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4162,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 359,
+      "user_lines_removed": 16,
+      "agent_lines_added": 4442,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        ".env.example": 18,
+        ".gitignore": 4,
+        "hackathon.md": 9,
+        "pyproject.toml": 1,
+        "upshift/agent.py": 9,
+        "upshift/cli.py": 17,
+        "upshift/pipeline.py": 2,
+        "upshift/playbook.py": 5,
+        "uv.lock": 193
+      },
+      "user_removed_per_file": {
+        ".env.example": 3,
+        "hackathon.md": 4,
+        "upshift/agent.py": 5,
+        "upshift/pipeline.py": 2,
+        "upshift/playbook.py": 2
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 359,
+      "user_lines_removed": 16,
+      "agent_lines_added": 4442,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        ".env.example": 18,
+        ".gitignore": 4,
+        "hackathon.md": 9,
+        "pyproject.toml": 1,
+        "upshift/agent.py": 9,
+        "upshift/cli.py": 17,
+        "upshift/pipeline.py": 2,
+        "upshift/playbook.py": 5,
+        "uv.lock": 193
+      },
+      "user_removed_per_file": {
+        ".env.example": 3,
+        "hackathon.md": 4,
+        "upshift/agent.py": 5,
+        "upshift/pipeline.py": 2,
+        "upshift/playbook.py": 2
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 612,
+      "user_lines_removed": 16,
+      "agent_lines_added": 4442,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        ".env.example": 18,
+        ".gitignore": 4,
+        "hackathon.md": 9,
+        "playbooks/pydantic-1.10.13-2.14.0.json": 253,
+        "pyproject.toml": 1,
+        "upshift/agent.py": 9,
+        "upshift/cli.py": 17,
+        "upshift/pipeline.py": 2,
+        "upshift/playbook.py": 5,
+        "uv.lock": 193
+      },
+      "user_removed_per_file": {
+        ".env.example": 3,
+        "hackathon.md": 4,
+        "upshift/agent.py": 5,
+        "upshift/pipeline.py": 2,
+        "upshift/playbook.py": 2
+      }
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 678,
+      "user_lines_removed": 34,
+      "agent_lines_added": 4442,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        ".env.example": 18,
+        ".gitignore": 4,
+        "hackathon.md": 22,
+        "playbooks/pydantic-1.10.13-2.14.0.json": 253,
+        "pyproject.toml": 1,
+        "tests/test_llm.py": 11,
+        "upshift/agent.py": 9,
+        "upshift/cli.py": 17,
+        "upshift/pipeline.py": 19,
+        "upshift/playbook.py": 30,
+        "uv.lock": 193
+      },
+      "user_removed_per_file": {
+        ".env.example": 3,
+        "hackathon.md": 5,
+        "upshift/agent.py": 5,
+        "upshift/pipeline.py": 15,
+        "upshift/playbook.py": 6
+      }
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 678,
+      "user_lines_removed": 34,
+      "agent_lines_added": 4442,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        ".env.example": 18,
+        ".gitignore": 4,
+        "hackathon.md": 22,
+        "playbooks/pydantic-1.10.13-2.14.0.json": 253,
+        "pyproject.toml": 1,
+        "tests/test_llm.py": 11,
+        "upshift/agent.py": 9,
+        "upshift/cli.py": 17,
+        "upshift/pipeline.py": 19,
+        "upshift/playbook.py": 30,
+        "uv.lock": 193
+      },
+      "user_removed_per_file": {
+        ".env.example": 3,
+        "hackathon.md": 5,
+        "upshift/agent.py": 5,
+        "upshift/pipeline.py": 15,
+        "upshift/playbook.py": 6
+      }
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 937,
+      "user_lines_removed": 50,
+      "agent_lines_added": 4442,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        ".env.example": 18,
+        ".gitignore": 4,
+        "hackathon.md": 54,
+        "playbooks/pydantic-1.10.13-2.14.0.json": 274,
+        "pyproject.toml": 1,
+        "tests/test_fix_loop.py": 61,
+        "tests/test_llm.py": 11,
+        "tests/test_workspace.py": 11,
+        "upshift/agent.py": 99,
+        "upshift/cli.py": 20,
+        "upshift/pipeline.py": 24,
+        "upshift/playbook.py": 37,
+        "upshift/research.py": 28,
+        "upshift/state.py": 1,
+        "uv.lock": 193
+      },
+      "user_removed_per_file": {
+        ".env.example": 3,
+        "hackathon.md": 5,
+        "upshift/agent.py": 13,
+        "upshift/cli.py": 1,
+        "upshift/pipeline.py": 16,
+        "upshift/playbook.py": 12
+      }
+    },
+    {
+      "checkpoint_number": 10,
+      "user_lines_added": 937,
+      "user_lines_removed": 50,
+      "agent_lines_added": 4442,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        ".env.example": 18,
+        ".gitignore": 4,
+        "hackathon.md": 54,
+        "playbooks/pydantic-1.10.13-2.14.0.json": 274,
+        "pyproject.toml": 1,
+        "tests/test_fix_loop.py": 61,
+        "tests/test_llm.py": 11,
+        "tests/test_workspace.py": 11,
+        "upshift/agent.py": 99,
+        "upshift/cli.py": 20,
+        "upshift/pipeline.py": 24,
+        "upshift/playbook.py": 37,
+        "upshift/research.py": 28,
+        "upshift/state.py": 1,
+        "uv.lock": 193
+      },
+      "user_removed_per_file": {
+        ".env.example": 3,
+        "hackathon.md": 5,
+        "upshift/agent.py": 13,
+        "upshift/cli.py": 1,
+        "upshift/pipeline.py": 16,
+        "upshift/playbook.py": 12
+      }
+    },
+    {
+      "checkpoint_number": 11,
+      "user_lines_added": 937,
+      "user_lines_removed": 50,
+      "agent_lines_added": 4442,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        ".env.example": 18,
+        ".gitignore": 4,
+        "hackathon.md": 54,
+        "playbooks/pydantic-1.10.13-2.14.0.json": 274,
+        "pyproject.toml": 1,
+        "tests/test_fix_loop.py": 61,
+        "tests/test_llm.py": 11,
+        "tests/test_workspace.py": 11,
+        "upshift/agent.py": 99,
+        "upshift/cli.py": 20,
+        "upshift/pipeline.py": 24,
+        "upshift/playbook.py": 37,
+        "upshift/research.py": 28,
+        "upshift/state.py": 1,
+        "uv.lock": 193
+      },
+      "user_removed_per_file": {
+        ".env.example": 3,
+        "hackathon.md": 5,
+        "upshift/agent.py": 13,
+        "upshift/cli.py": 1,
+        "upshift/pipeline.py": 16,
+        "upshift/playbook.py": 12
+      }
+    },
+    {
+      "checkpoint_number": 12,
+      "user_lines_added": 937,
+      "user_lines_removed": 50,
+      "agent_lines_added": 4442,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        ".env.example": 18,
+        ".gitignore": 4,
+        "hackathon.md": 54,
+        "playbooks/pydantic-1.10.13-2.14.0.json": 274,
+        "pyproject.toml": 1,
+        "tests/test_fix_loop.py": 61,
+        "tests/test_llm.py": 11,
+        "tests/test_workspace.py": 11,
+        "upshift/agent.py": 99,
+        "upshift/cli.py": 20,
+        "upshift/pipeline.py": 24,
+        "upshift/playbook.py": 37,
+        "upshift/research.py": 28,
+        "upshift/state.py": 1,
+        "uv.lock": 193
+      },
+      "user_removed_per_file": {
+        ".env.example": 3,
+        "hackathon.md": 5,
+        "upshift/agent.py": 13,
+        "upshift/cli.py": 1,
+        "upshift/pipeline.py": 16,
+        "upshift/playbook.py": 12
+      }
+    },
+    {
+      "checkpoint_number": 13,
+      "user_lines_added": 1093,
+      "user_lines_removed": 97,
+      "agent_lines_added": 4801,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        ".env.example": 18,
+        ".gitignore": 4,
+        "demo/shop_app/requirements.txt": 3,
+        "hackathon.md": 78,
+        "playbooks/pydantic-1.10.13-2.14.0.json": 274,
+        "pyproject.toml": 1,
+        "tests/test_fix_loop.py": 61,
+        "tests/test_llm.py": 11,
+        "tests/test_workspace.py": 11,
+        "upshift/agent.py": 99,
+        "upshift/cli.py": 50,
+        "upshift/pipeline.py": 91,
+        "upshift/playbook.py": 37,
+        "upshift/research.py": 43,
+        "upshift/state.py": 4,
+        "upshift/workspace.py": 14,
+        "uv.lock": 193
+      },
+      "user_removed_per_file": {
+        ".env.example": 3,
+        "hackathon.md": 6,
+        "upshift/agent.py": 13,
+        "upshift/cli.py": 9,
+        "upshift/pipeline.py": 47,
+        "upshift/playbook.py": 12,
+        "upshift/research.py": 5,
+        "upshift/state.py": 1,
+        "upshift/workspace.py": 1
+      }
+    },
+    {
+      "checkpoint_number": 14,
+      "user_lines_added": 179,
+      "user_lines_removed": 6,
+      "agent_lines_added": 5624,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        "hackathon.md": 78
+      },
+      "user_removed_per_file": {
+        "hackathon.md": 6
+      }
+    },
+    {
+      "checkpoint_number": 15,
+      "user_lines_added": 208,
+      "user_lines_removed": 9,
+      "agent_lines_added": 5628,
+      "agent_lines_removed": 2,
+      "user_added_per_file": {
+        ".claude/settings.json": 101,
+        "hackathon.md": 77,
+        "pyproject.toml": 1,
+        "uv.lock": 29
+      },
+      "user_removed_per_file": {
+        "hackathon.md": 9
+      }
+    }
+  ]
+}
