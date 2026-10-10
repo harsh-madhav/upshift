@@ -24,7 +24,7 @@ CLEANUP_PROMPT = """Cleanup round {n}. Tests pass again ({passed} passing), but 
 Migrate each one to its replacement from the playbook. Keep behaviour identical, including arguments
 such as by_alias, include, exclude and update. Don't touch tests. Run the tests, then call finish_round."""
 
-SYSTEM = """You are upgrading the Python package {package} from {old} to {new} in the repository at the
+SYSTEM = """You are upgrading {subject} from {old} to {new} in the repository at the
 working directory. The new version is already installed and pinned. Your job is to change the code so the
 test suite passes again. Tests that were already failing before the upgrade are not your concern.
 
@@ -73,8 +73,8 @@ class FixLoop:
         self.max_rounds = max_rounds
         self.fetch = Fetcher(cap=20000)
         self.baseline = set(state.baseline_failing)
-        self.system = SYSTEM.format(package=state.package, old=state.old, new=state.new,
-                                    playbook=render_playbook(playbook))
+        subject = "the project's Python version" if state.kind == "python" else f"the Python package {state.package}"
+        self.system = SYSTEM.format(subject=subject, old=state.old, new=state.new, playbook=render_playbook(playbook))
 
     def new_failures(self, run: TestRun) -> set[str]:
         return run.failing - self.baseline

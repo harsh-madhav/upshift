@@ -16,6 +16,7 @@ PYPI = "https://pypi.org/pypi/{}/json"
 PROBE = Path(__file__).with_name("apidiff_probe.py")
 SOURCE_CAP = 30000
 USEFUL_LINK = re.compile(r"change|release|history|news|migrat|upgrad|doc", re.I)
+WHATSNEW = "https://docs.python.org/3/whatsnew/{}.html"
 
 
 def http_get(url: str, timeout: float = 20) -> httpx.Response:
@@ -158,7 +159,32 @@ def api_diff(package: str, old: str, new: str, python: str, scratch: Path,
         surfaces[label] = json.loads(out.stdout or "{}")
         if not surfaces[label]:
             return {"error": f"{package}=={version} installed but exposed no symbols (it probably failed to import)"}
-    before, after = surfaces["old"], surfaces["new"]
+    return compare(surfaces["old"], surfaces["new"])
+
+
+@neatlogs.span(kind="TOOL", tool_name="stdlib_diff")
+def stdlib_diff(old: str, new: str, scratch: Path) -> dict:
+    """The standard library's public API under both interpreters. A module removed whole is one entry."""
+    surfaces = {}
+    for label, version in (("old", old), ("new", new)):
+        venv = scratch / f"stdlib-{label}"
+        if not venv.exists():
+            out = sh(["uv", "venv", "-q", "--python", version, str(venv)])
+            if out.returncode != 0:
+                return {"error": f"could not create a Python {version} venv: {tail(out.stderr, 1500)}"}
+        out = sh([str(venv / "bin" / "python"), "-I", str(PROBE), "--stdlib"], timeout=600)
+        if out.returncode != 0:
+            return {"error": f"stdlib probe failed on Python {version}: {tail(out.stderr, 1500)}"}
+        surfaces[label] = json.loads(out.stdout or "{}")
+    diff = compare(surfaces["old"], surfaces["new"])
+    after_tops = {name.split(".")[0] for name in surfaces["new"]}
+    gone = {name.split(".")[0] for name in diff["removed"]} - after_tops
+    diff["removed"] = sorted(f"{top} (whole module removed)" for top in gone) + [
+        name for name in diff["removed"] if name.split(".")[0] not in gone]
+    return diff
+
+
+def compare(before: dict, after: dict) -> dict:
     return {
         "removed": sorted(set(before) - set(after)),
         "added": sorted(set(after) - set(before)),
@@ -190,6 +216,54 @@ def format_api_diff(diff: dict, per_section: int = 250) -> str:
         lines.append(f"... and {len(changed) - per_section} more")
     lines.append(f"ADDED: {len(diff['added'])} symbols (not listed)")
     return "\n".join(lines)
+
+
+def html_section(html: str, section_id: str) -> str:
+    """The HTML of one Sphinx <section id=...>, nested sections included."""
+    start = html.find(f'<section id="{section_id}">')
+    if start < 0:
+        return ""
+    depth = 0
+    for tag in re.finditer(r"<section\b|</section>", html[start:]):
+        depth += 1 if tag.group(0) == "<section" else -1
+        if depth == 0:
+            return html[start:start + tag.end()]
+    return html[start:]
+
+
+def python_versions(old: str, new: str) -> list[str]:
+    """Minor versions whose What's New applies to an upgrade, e.g. 3.10 -> 3.12 gives 3.11 and 3.12."""
+    low, high = Version(old), Version(new)
+    return [f"{high.major}.{minor}" for minor in range(low.minor + 1, high.minor + 1)]
+
+
+@neatlogs.span(kind="RETRIEVER", tool_name="gather_python_sources")
+def gather_python(old: str, new: str, scratch: Path) -> dict:
+    """Research for a Python version upgrade: the removal and porting sections of each What's New page, and a
+    diff of the standard library under both interpreters."""
+    links, docs = {}, {}
+    for version in python_versions(old, new):
+        url = WHATSNEW.format(version)
+        links[f"What's New in Python {version}"] = url
+        try:
+            html = http_get(url).text
+        except httpx.HTTPError as exc:
+            docs[f"Python {version}"] = f"[fetch failed: {exc}]"
+            continue
+        for section, cap in (("removed", 15000), (f"porting-to-python-{version.replace('.', '-')}", 10000),
+                             ("deprecated", 6000)):
+            text = html_to_text(html_section(html, section))
+            if text:
+                docs[f"Python {version}: {section}"] = text[:cap] + ("\n...[truncated]" if len(text) > cap else "")
+    return {
+        "package": "python",
+        "old": old,
+        "new": new,
+        "links": links,
+        "docs": docs,
+        "release_notes": "[not applicable: see the What's New sections above]",
+        "api_diff": format_api_diff(stdlib_diff(old, new, scratch)),
+    }
 
 
 def candidate_links(info: dict) -> dict[str, str]:

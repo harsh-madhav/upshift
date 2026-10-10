@@ -136,9 +136,48 @@ with `claude-sonnet-4.6`, both jobs OK:
 The playbook came from the cache (researched in the earlier run), so Claude only ran the fix loop here. neatlogs shows
 the tokens but $0 cost for this trace: it has no price for the proxy's model name `claude-sonnet-4.6`.
 
+### Python version upgrade
+`upshift python --repo R --to 3.12` (current version from `.python-version` or `--from`):
+- Moves the pins: `.python-version`, Dockerfile `FROM python:`, GitHub Actions `python-version`, tox envs, and in
+  pyproject `requires-python` (only if it excludes the new version) plus ruff/black/mypy targets.
+- Rebuilds the venv on the new Python. A dependency that won't install there stops the job and is named.
+- Research: the Removed, Porting and Deprecated sections of each What's New page in range (whole pages are
+  350-460 KB), plus the stdlib API diff: the probe runs under both interpreters. 3.10 → 3.12 gives 1,501 removed
+  symbols, collapsed to 245 by listing a removed module once (`distutils`, `imp`, `asynchat`, ...).
+
+Demo: `shop_app` is now a Python 3.10 app (`.python-version`, Dockerfile, CI workflow) with a settings module using
+`configparser.SafeConfigParser`, `distutils.util.strtobool` and `inspect.getargspec`. 26 tests.
+
+Real run, `claude-opus-4.6` through the neatHack proxy, run `20261010-165253-python-3.12`: 1 fix round, 0 → 26
+passing, pins moved in `.python-version`, Dockerfile and CI. `SafeConfigParser` → `ConfigParser`, `strtobool` →
+a local function with the same behaviour (the invalid-value `ValueError` test still passes), `getargspec` →
+`getfullargspec`. No test files touched; `entire graph verify`: no effect. 141,549 input / 6,735 output tokens.
+
+Repeated from scratch with `claude-sonnet-4.6` (the `.env` default now) and `--fresh-research`, run
+`20261010-173515-python-3.12`, trace `66a593a552cf08dc6b307ff1963beca1`: the same three fixes in 1 round, 26/26,
+80 s end to end, no errored spans, no retries, 137,904 tokens (≈ $0.51 at Sonnet 4.6 list prices).
+
+Recovery, in four neatlogs traces under the first run's session:
+
+| Trace | What happened |
+|---|---|
+| `9283dd9d…` | Research failed: `.env` named a model the configured provider doesn't have (404). The run crashed with a traceback |
+| `186e3830…` | Resumed on the proxy: 504 Gateway Time-out. The client retried the same call 6 times, 454 s wasted. Stopped cleanly with a resume hint |
+| `e41fbfb9…` | Resumed, now streaming: the connection dropped after 73 s. Stopped cleanly |
+| `5e2eab69…` | Resumed with whole-call retry: research, fix, verify, report done in 104 s. Setup, baseline and bump were not redone |
+
+Fixes from those traces:
+- A failed model call now stops the run with `upshift resume <id>` instead of a traceback.
+- OpenAI-compatible calls are streamed, so a proxy doesn't cut off a long reply that sends nothing for a minute.
+- A stream that drops midway is retried whole (up to 3 attempts, recorded as `retry_attempt` on the span); the SDK
+  only retries before a stream starts. SDK retries cut from 6 to 3.
+
+Next targets from this run: 141K input tokens for one fix round is high (the playbook in the system prompt plus a
+resent history), and neatlogs shows $0 for proxy model names.
+
 Next:
 - Repeat v0/v1 on more repos (real OSS projects) to separate the improvement from run-to-run variance.
-- Python version bump, then API drift.
+- API drift.
 
 ## Demo
 Not recorded yet.

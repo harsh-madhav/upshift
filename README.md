@@ -12,8 +12,8 @@ Built for #neatHack with neatlogs, Entire and cfo.ai. Bring your own model key.
 
 ## Status
 
-Package bumps and vulnerability scans work end to end. Python version bumps and third-party API drift
-come next.
+Package bumps, vulnerability scans and Python version upgrades work end to end. Third-party API drift
+comes next.
 
 ## Run it
 
@@ -32,6 +32,7 @@ uv run upshift bump --repo demo/shop_app --package pydantic --to 2 --dry-run
 # the full agent
 uv run upshift bump --repo demo/shop_app --package pydantic --to 2
 uv run upshift scan --repo demo/shop_app                     # find known vulnerabilities and fix each one
+uv run upshift python --repo demo/shop_app --to 3.12         # move to a newer Python and fix what breaks
 uv run upshift resume <run-id>     # continue a crashed or killed run
 ```
 
@@ -74,6 +75,12 @@ Every job is one neatlogs trace.
 one job per vulnerable package, like one PR each. The target is the smallest release that fixes every advisory,
 preferring the current major line. A fix that breaks nothing is just a pin change with no model calls; one that
 breaks the code goes through research and the fix loop like any other upgrade.
+
+`upshift python` moves the version pins (`.python-version`, Dockerfile base image, GitHub Actions, tox, and
+`requires-python` / ruff / mypy targets in pyproject.toml), rebuilds the venv on the new Python and fixes what
+breaks. Its research is the Removed, Porting and Deprecated sections of each What's New page in range, plus a diff
+of the standard library under both interpreters. If a pinned dependency has no release for the new Python, the job
+stops and names it, so it can be upgraded first with `upshift bump`.
 
 ## Tests
 

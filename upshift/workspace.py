@@ -129,6 +129,11 @@ class Workspace:
         out = sh(["uv", "pip", "freeze", "--python", self.py])
         return "".join(f"{l.strip()}\n" for l in out.stdout.splitlines() if PINNED.match(l.strip()))
 
+    def python_version(self) -> str:
+        """The venv interpreter's minor version, e.g. "3.10"."""
+        out = sh([self.py, "-c", "import sys; print('%d.%d' % sys.version_info[:2])"])
+        return out.stdout.strip()
+
     def installed_version(self, package: str) -> str | None:
         out = sh([self.py, "-c", "import importlib.metadata as m, sys; print(m.version(sys.argv[1]))", package])
         return out.stdout.strip() if out.returncode == 0 else None

@@ -4,15 +4,16 @@ Each phase is a neatlogs span under the job's WORKFLOW trace, and state is saved
 """
 
 import re
+import shutil
 from pathlib import Path
 
 import neatlogs
 from packaging.utils import canonicalize_name
 from packaging.version import Version
 
-from . import graph, playbook, research, tracing, vuln
+from . import graph, playbook, pyversion, research, tracing, vuln
 from .agent import FixLoop
-from .llm import make_llm
+from .llm import LLMError, make_llm
 from .state import PHASES as PHASE_ORDER, RunState
 from .workspace import Workspace
 
@@ -46,6 +47,12 @@ def run(state: RunState, dry_run: bool = False) -> RunState:
             except Stop as stop:
                 state.notes.append(str(stop))
                 print(f"[upshift] stopped: {stop}")
+            except LLMError as exc:
+                # the phase didn't finish, so `resume` redoes it once the provider is fixed or back
+                tracing.annotate(failure_class=f"llm:{exc.code}", recovery="stop_resumable")
+                state.notes.append(f"{state.phase}: model call failed ({exc.code})")
+                print(f"[upshift] {state.phase}: model call failed: {exc}\n"
+                      f"[upshift] fix the provider settings, then: upshift resume {state.run_id}")
             finally:
                 root.set_attribute("upshift.phase_reached", state.phase)
                 state.save()
@@ -57,6 +64,8 @@ def next_phase(phase: str) -> str:
 
 
 def setup(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
+    if state.kind == "python":
+        return setup_python(state, ws)
     info = research.pypi_info(state.package)
     state.new = research.resolve_target(info, state.wanted)
     if not ws.repo.exists():
@@ -71,6 +80,22 @@ def setup(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
         raise Stop(f"{state.package} is already at {state.old} (target {state.new})")
 
 
+def setup_python(state: RunState, ws: Workspace) -> None:
+    if not ws.repo.exists():
+        ws.clone(state.source, f"upshift/python-{state.wanted}")
+        state.base_commit = ws.git("rev-parse", "HEAD").strip()
+    if not state.python:
+        state.python = ws.python = pyversion.detect(ws.repo) or ""
+        if not state.python:
+            raise Stop("can't tell which Python the repo uses (no .python-version); pass --from")
+    ws.install()
+    state.old = ws.python_version()
+    state.new = state.wanted
+    tracing.annotate(old=state.old, new=state.new)
+    if Version(state.old) >= Version(state.new):
+        raise Stop(f"the project already runs on Python {state.old} (target {state.new})")
+
+
 def baseline(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
     (state.dir / "env-before.txt").write_text(ws.freeze())  # the versions the old code ran with
     run = ws.run_tests()
@@ -81,16 +106,38 @@ def baseline(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
 
 
 def bump(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
-    ws.set_version(state.package, state.new)
-    if not ws.pin_files(state.package):
-        state.notes.append(f"{state.package} is not declared in a requirements file or pyproject.toml; "
-                           "it was upgraded in the environment only.")
+    if state.kind == "python":
+        move_python(state, ws)
+    else:
+        ws.set_version(state.package, state.new)
+        if not ws.pin_files(state.package):
+            state.notes.append(f"{state.package} is not declared in a requirements file or pyproject.toml; "
+                               "it was upgraded in the environment only.")
     ws.git("add", "-A")
     ws.git("commit", "-q", "--allow-empty", "-m", f"upshift: bump {state.package} {state.old} -> {state.new}")
     run = ws.run_tests()
     state.after_bump_failing = sorted(run.failing - set(state.baseline_failing))
     (state.dir / "after-bump.txt").write_text(run.output)
     tracing.annotate(passed_after_bump=run.passed, new_failures_after_bump=len(state.after_bump_failing))
+
+
+def move_python(state: RunState, ws: Workspace) -> None:
+    """Point the repo's version pins at the new Python and rebuild the venv on it."""
+    changed = pyversion.retarget(ws.repo, state.old, state.new)
+    tracing.annotate(config_files_changed=", ".join(changed) or "none")
+    if not changed:
+        state.notes.append("No Python version pins found (.python-version, Dockerfile, CI, tox, pyproject).")
+    state.python = ws.python = state.new
+    shutil.rmtree(ws.venv, ignore_errors=True)
+    try:
+        ws.install()
+    except RuntimeError as exc:
+        # a pinned dependency with no release for the new Python: upgrading it is its own job
+        blocked = sorted(set(re.findall(r"`([A-Za-z0-9][A-Za-z0-9._-]*==[^`\s]+)`", str(exc))))
+        tracing.annotate(failure_class="install_failed_on_new_python", blocked=", ".join(blocked))
+        raise Stop(f"the dependencies don't install on Python {state.new}"
+                   + (f" ({', '.join(blocked)})" if blocked else "")
+                   + ". Upgrade those first with `upshift bump --package NAME`, then run this again.") from exc
 
 
 def do_research(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
@@ -106,8 +153,11 @@ def do_research(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
     else:
         tracing.annotate(playbook_cache="miss")
         env_before = state.dir / "env-before.txt"
-        sources = research.gather(state.package, state.old, state.new, state.python, state.dir,
-                                  env_before if env_before.exists() else None)
+        if state.kind == "python":
+            sources = research.gather_python(state.old, state.new, state.dir)
+        else:
+            sources = research.gather(state.package, state.old, state.new, state.python, state.dir,
+                                      env_before if env_before.exists() else None)
         (state.dir / "sources.md").write_text(playbook.render_sources(sources))
         if not dry_run:
             state.playbook_path = str(playbook.save(playbook.build(llm, sources)))

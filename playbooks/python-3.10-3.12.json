@@ -1,0 +1,344 @@
+{
+  "package": "python",
+  "old": "3.10",
+  "new": "3.12",
+  "summary": "Upgrading from Python 3.10 to 3.12 involves two major version bumps with significant API removals. Entire modules were deleted (imp, distutils, asynchat, asyncore, smtpd, binhex), dozens of long-deprecated aliases across configparser, unittest, ssl, gettext, importlib, and other modules were removed, and several behavioural changes affect random, re, open(), os, shlex, and tokenize. Code must be audited for use of any removed module, removed function/class aliases, and subtle call-signature changes.",
+  "rules": [
+    {
+      "old": "import imp",
+      "new": "import importlib, importlib.util, importlib.machinery, types  # see per-function table",
+      "detect": "\\bimport\\s+imp\\b|\\bfrom\\s+imp\\b",
+      "why": "The imp module was fully removed in Python 3.12; use importlib equivalents.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "imp.find_module(name)",
+      "new": "importlib.util.find_spec(name)",
+      "detect": "\\bimp\\.find_module\\b",
+      "why": "imp.find_module() was removed; use importlib.util.find_spec() instead.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "imp.load_source(modname, filename)",
+      "new": "loader = importlib.machinery.SourceFileLoader(modname, filename); spec = importlib.util.spec_from_file_location(modname, filename, loader=loader); module = importlib.util.module_from_spec(spec); loader.exec_module(module)",
+      "detect": "\\bimp\\.load_source\\b",
+      "why": "imp.load_source() was removed in Python 3.12; load manually via importlib machinery.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "imp.reload(module)",
+      "new": "importlib.reload(module)",
+      "detect": "\\bimp\\.reload\\b",
+      "why": "imp.reload() was removed; use importlib.reload().",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "import distutils",
+      "new": "# install setuptools and use setuptools / packaging instead",
+      "detect": "\\bimport\\s+distutils\\b|\\bfrom\\s+distutils\\b",
+      "why": "The distutils package was fully removed in Python 3.12 (PEP 632); use setuptools.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "import asynchat",
+      "new": "import asyncio  # rewrite using asyncio",
+      "detect": "\\bimport\\s+asynchat\\b|\\bfrom\\s+asynchat\\b",
+      "why": "asynchat was removed in Python 3.12; rewrite using asyncio.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "import asyncore",
+      "new": "import asyncio  # rewrite using asyncio",
+      "detect": "\\bimport\\s+asyncore\\b|\\bfrom\\s+asyncore\\b",
+      "why": "asyncore was removed in Python 3.12; rewrite using asyncio.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "import smtpd",
+      "new": "# use the aiosmtpd PyPI package instead",
+      "detect": "\\bimport\\s+smtpd\\b|\\bfrom\\s+smtpd\\b",
+      "why": "The smtpd module was removed in Python 3.12; use the aiosmtpd PyPI package.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "import binhex",
+      "new": "# no stdlib replacement; remove binhex usage entirely",
+      "detect": "\\bimport\\s+binhex\\b|\\bfrom\\s+binhex\\b",
+      "why": "The binhex module was removed in Python 3.11.",
+      "source": "https://docs.python.org/3/whatsnew/3.11.html"
+    },
+    {
+      "old": "from asyncio import coroutine\n@asyncio.coroutine\ndef gen_coro(): ...",
+      "new": "async def coro(): ...",
+      "detect": "@asyncio\\.coroutine|asyncio\\.coroutine\\b",
+      "why": "The @asyncio.coroutine decorator for legacy generator-based coroutines was removed in Python 3.11; use async def.",
+      "source": "https://docs.python.org/3/whatsnew/3.11.html"
+    },
+    {
+      "old": "configparser.SafeConfigParser()",
+      "new": "configparser.ConfigParser()",
+      "detect": "configparser\\.SafeConfigParser",
+      "why": "configparser.SafeConfigParser was removed in Python 3.12; use ConfigParser.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "parser.readfp(fp)",
+      "new": "parser.read_file(fp)",
+      "detect": "\\.readfp\\s*\\(",
+      "why": "configparser.RawConfigParser.readfp() was removed in Python 3.12; use read_file().",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "configparser.ParsingError(filename='myfile.cfg')",
+      "new": "configparser.ParsingError(source='myfile.cfg')",
+      "detect": "ParsingError\\s*\\(.*filename\\s*=",
+      "why": "The filename parameter/attribute of configparser.ParsingError was removed; use source.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "ssl.wrap_socket(sock, ...)",
+      "new": "ctx = ssl.SSLContext(...); ctx.wrap_socket(sock, ...)",
+      "detect": "ssl\\.wrap_socket\\s*\\(",
+      "why": "ssl.wrap_socket() was removed in Python 3.12; create an SSLContext and call its wrap_socket method.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "ssl.match_hostname(cert, hostname)",
+      "new": "# hostname verification is handled automatically by OpenSSL since 3.7",
+      "detect": "ssl\\.match_hostname\\s*\\(",
+      "why": "ssl.match_hostname() was removed in Python 3.12; OpenSSL handles hostname matching automatically.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "ssl.RAND_pseudo_bytes(n)",
+      "new": "os.urandom(n)  # or ssl.RAND_bytes(n)",
+      "detect": "ssl\\.RAND_pseudo_bytes\\s*\\(",
+      "why": "ssl.RAND_pseudo_bytes() was removed in Python 3.12; use os.urandom() or ssl.RAND_bytes().",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "ftplib.FTP_TLS(host, keyfile='k.pem', certfile='c.pem')",
+      "new": "ctx = ssl.SSLContext(); ctx.load_cert_chain('c.pem', 'k.pem'); ftplib.FTP_TLS(host, context=ctx)",
+      "detect": "FTP_TLS\\s*\\(.*(?:keyfile|certfile)\\s*=",
+      "why": "The keyfile and certfile parameters were removed from ftplib.FTP_TLS in Python 3.12; use the context parameter.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "imaplib.IMAP4_SSL(host, keyfile='k.pem', certfile='c.pem')",
+      "new": "ctx = ssl.SSLContext(); ctx.load_cert_chain('c.pem', 'k.pem'); imaplib.IMAP4_SSL(host, ssl_context=ctx)",
+      "detect": "IMAP4_SSL\\s*\\(.*(?:keyfile|certfile)\\s*=",
+      "why": "The keyfile/certfile parameters were removed from imaplib.IMAP4_SSL in Python 3.12; use ssl_context.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "smtplib.SMTP_SSL(host, keyfile='k.pem', certfile='c.pem')",
+      "new": "ctx = ssl.SSLContext(); ctx.load_cert_chain('c.pem', 'k.pem'); smtplib.SMTP_SSL(host, context=ctx)",
+      "detect": "SMTP_SSL\\s*\\(.*(?:keyfile|certfile)\\s*=",
+      "why": "The keyfile/certfile parameters were removed from smtplib.SMTP_SSL in Python 3.12; use context.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "inspect.getargspec(func)",
+      "new": "inspect.getfullargspec(func)  # or inspect.signature(func)",
+      "detect": "inspect\\.getargspec\\s*\\(",
+      "why": "inspect.getargspec() was removed in Python 3.11; use inspect.signature() or getfullargspec().",
+      "source": "https://docs.python.org/3/whatsnew/3.11.html"
+    },
+    {
+      "old": "inspect.formatargspec(*getfullargspec(f))",
+      "new": "str(inspect.signature(f))",
+      "detect": "inspect\\.formatargspec\\s*\\(",
+      "why": "inspect.formatargspec() was removed in Python 3.11; use inspect.signature() directly.",
+      "source": "https://docs.python.org/3/whatsnew/3.11.html"
+    },
+    {
+      "old": "gzip.GzipFile(...).filename",
+      "new": "gzip.GzipFile(...).name",
+      "detect": "\\.filename",
+      "why": "gzip.GzipFile.filename was removed in Python 3.12; use the .name attribute.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "locale.format(fmt, val)",
+      "new": "locale.format_string(fmt, val)",
+      "detect": "locale\\.format\\s*\\(",
+      "why": "locale.format() was removed in Python 3.12; use locale.format_string().",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "gettext.lgettext(message)",
+      "new": "gettext.gettext(message)  # encode explicitly if bytes needed",
+      "detect": "gettext\\.lgettext\\s*\\(",
+      "why": "gettext.lgettext() and related l*gettext functions were removed in Python 3.11.",
+      "source": "https://docs.python.org/3/whatsnew/3.11.html"
+    },
+    {
+      "old": "sqlite3.enable_shared_cache(True)",
+      "new": "# use URI mode: sqlite3.connect('file:path?cache=shared', uri=True)",
+      "detect": "sqlite3\\.enable_shared_cache\\s*\\(",
+      "why": "sqlite3.enable_shared_cache() was removed in Python 3.12; use URI mode with cache=shared.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "sqlite3.version\nsqlite3.version_info",
+      "new": "sqlite3.sqlite_version\nsqlite3.sqlite_version_info",
+      "detect": "sqlite3\\.version(?:_info)?\\b(?!\\s*_)",
+      "why": "sqlite3.version and sqlite3.version_info (pysqlite2 version, not SQLite version) were removed in Python 3.12.",
+      "source": "api-diff"
+    },
+    {
+      "old": "importlib.util.set_package(func)",
+      "new": "# remove decorator; set __package__ directly in the loader",
+      "detect": "importlib\\.util\\.set_package\\b",
+      "why": "importlib.util.set_package, set_loader, and module_for_loader were removed in Python 3.12.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "pkgutil.ImpImporter(path)",
+      "new": "# use importlib.machinery finders instead",
+      "detect": "pkgutil\\.ImpImporter\\b",
+      "why": "pkgutil.ImpImporter and pkgutil.ImpLoader were removed in Python 3.12.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "open(file, 'rU')\nio.open(file, 'U')",
+      "new": "open(file, 'r', newline=None)",
+      "detect": "open\\s*\\(.*['\"].*U.*['\"]",
+      "why": "The 'U' (universal newline) mode flag was removed from open(), io.open(), codecs.open() and fileinput.FileInput in Python 3.11.",
+      "source": "https://docs.python.org/3/whatsnew/3.11.html"
+    },
+    {
+      "old": "random.sample(my_set, k=5)",
+      "new": "random.sample(sorted(my_set), k=5)  # or list(my_set)",
+      "detect": "",
+      "why": "random.sample() no longer accepts sets; the population must be a sequence in Python 3.11.",
+      "source": "https://docs.python.org/3/whatsnew/3.11.html"
+    },
+    {
+      "old": "random.shuffle(lst, random=my_rng)",
+      "new": "random.shuffle(lst)  # custom RNG parameter removed",
+      "detect": "random\\.shuffle\\s*\\(.*,\\s*(?!\\))",
+      "why": "The optional random parameter of random.shuffle() was removed in Python 3.11; random.random() is always used.",
+      "source": "https://docs.python.org/3/whatsnew/3.11.html"
+    },
+    {
+      "old": "random.randrange(10.0)",
+      "new": "random.randrange(10)",
+      "detect": "randrange\\s*\\(\\s*[0-9]+\\.[0-9]*",
+      "why": "random.randrange() no longer accepts float arguments in Python 3.12; it raises TypeError.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "shlex.split(None)  # reads from sys.stdin",
+      "new": "shlex.split(sys.stdin.read())",
+      "detect": "shlex\\.split\\s*\\(\\s*None\\s*\\)",
+      "why": "Passing None to shlex.split() now raises an exception in Python 3.12; read stdin explicitly.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "shutil.rmtree(path, onerror=handler)",
+      "new": "shutil.rmtree(path, onexc=handler)  # handler(func, path, exc) not (func, path, exc_info)",
+      "detect": "rmtree\\s*\\(.*onerror\\s*=",
+      "why": "shutil.rmtree()'s onerror parameter is deprecated in Python 3.12 and replaced by onexc which receives an exception instance instead of a (typ, val, tb) tuple.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "unittest.TestCase.assertEquals(a, b)",
+      "new": "unittest.TestCase.assertEqual(a, b)",
+      "detect": "\\.assertEquals\\s*\\(",
+      "why": "The assertEquals (and many other deprecated TestCase method aliases) were removed in Python 3.12.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "self.assertRaisesRegexp(exc, r'pattern')",
+      "new": "self.assertRaisesRegex(exc, r'pattern')",
+      "detect": "\\.assertRaisesRegexp\\s*\\(",
+      "why": "unittest.TestCase.assertRaisesRegexp was removed in Python 3.12; use assertRaisesRegex.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "self.assertRegexpMatches(text, r'pattern')",
+      "new": "self.assertRegex(text, r'pattern')",
+      "detect": "\\.assertRegexpMatches\\s*\\(",
+      "why": "unittest.TestCase.assertRegexpMatches was removed in Python 3.12; use assertRegex.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "self.failUnless(expr)",
+      "new": "self.assertTrue(expr)",
+      "detect": "\\.failUnless\\s*\\(",
+      "why": "The failUnless/failIf family of TestCase methods were removed in Python 3.12.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "ast.Num(n=42)\nast.Str(s='hi')\nast.Bytes(s=b'x')\nast.NameConstant(value=True)\nast.Ellipsis()",
+      "new": "ast.Constant(value=42)\nast.Constant(value='hi')\nast.Constant(value=b'x')\nast.Constant(value=True)\nast.Constant(value=...)",
+      "detect": "ast\\.(Num|Str|Bytes|NameConstant|Ellipsis)\\s*\\(",
+      "why": "ast.Num, ast.Str, ast.Bytes, ast.NameConstant, and ast.Ellipsis emit DeprecationWarning in 3.12 and are removed in 3.14; use ast.Constant.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "datetime.datetime.utcnow()",
+      "new": "datetime.datetime.now(tz=datetime.timezone.utc)",
+      "detect": "datetime\\.datetime\\.utcnow\\s*\\(",
+      "why": "datetime.datetime.utcnow() is deprecated in Python 3.12 and will be removed; use timezone-aware now(tz=UTC).",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "datetime.datetime.utcfromtimestamp(ts)",
+      "new": "datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)",
+      "detect": "datetime\\.datetime\\.utcfromtimestamp\\s*\\(",
+      "why": "datetime.datetime.utcfromtimestamp() is deprecated in Python 3.12; use fromtimestamp() with tz=UTC.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "sys._current_exceptions()  # returns {tid: (type, exc, tb)}",
+      "new": "sys._current_exceptions()  # now returns {tid: exc_instance}",
+      "detect": "",
+      "why": "sys._current_exceptions() now returns a mapping from thread-id to an exception instance rather than a (type, exc, tb) tuple in Python 3.12.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "os.path_arg = bytearray(b'/tmp/file')\nos.stat(bytearray(b'/tmp'))",
+      "new": "os.stat(b'/tmp')",
+      "detect": "",
+      "why": "The os module no longer accepts bytearray or memoryview as path arguments in Python 3.12; only exact bytes or str.",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "zipimport.zipimporter(...).find_module(fullname)",
+      "new": "zipimport.zipimporter(...).find_spec(fullname)",
+      "detect": "zipimporter\\b.*\\.find_module\\s*\\(|zipimporter\\b.*\\.find_loader\\s*\\(",
+      "why": "zipimport.zipimporter.find_loader() and find_module() were removed in Python 3.12; use find_spec().",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "element.copy()  # xml.etree.ElementTree.Element",
+      "new": "import copy; copy.copy(element)",
+      "detect": "",
+      "why": "The Element.copy() method of the pure-Python ElementTree implementation was removed in Python 3.12; use copy.copy().",
+      "source": "https://docs.python.org/3/whatsnew/3.12.html"
+    },
+    {
+      "old": "asyncio.Lock(loop=my_loop)\nasyncio.Queue(maxsize=0, loop=my_loop)",
+      "new": "asyncio.Lock()\nasyncio.Queue(maxsize=0)",
+      "detect": "asyncio\\.(Lock|Event|Condition|Semaphore|BoundedSemaphore|Queue|LifoQueue|PriorityQueue)\\s*\\(.*loop\\s*=",
+      "why": "The loop parameter was removed from asyncio synchronisation primitives and queues (deprecated since 3.8, removed in 3.10 for most; clean removal finalised by 3.12 signature change).",
+      "source": "api-diff"
+    },
+    {
+      "old": "re.compile('(?i)pattern')  # global inline flag not at start",
+      "new": "re.compile('(?i)pattern')  # move flag to the very start of the pattern",
+      "detect": "",
+      "why": "Global inline regex flags (e.g. (?i)) can now only appear at the start of the expression in Python 3.11; placing them elsewhere raises an error.",
+      "source": "https://docs.python.org/3/whatsnew/3.11.html"
+    },
+    {
+      "old": "binascii.a2b_hqx(data)\nbinascii.b2a_hqx(data)",
+      "new": "# no replacement; remove binhex-related code",
+      "detect": "binascii\\.(a2b_hqx|b2a_hqx|rlecode_hqx|rldecode_hqx)\\s*\\(",
+      "why": "binascii.a2b_hqx, b2a_hqx, rlecode_hqx, rldecode_hqx were removed in Python 3.11 along with the binhex module.",
+      "source": "https://docs.python.org/3/whatsnew/3.11.html"
+    }
+  ]
+}

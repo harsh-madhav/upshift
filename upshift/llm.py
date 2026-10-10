@@ -15,8 +15,12 @@ Configure with environment variables (or a git-ignored .env file):
 
 import json
 import os
+import time
+from types import SimpleNamespace
 
 import neatlogs
+
+from . import tracing
 
 PROVIDERS = ("anthropic", "openai", "azure-openai", "litellm", "bedrock")
 ANTHROPIC_DEFAULT_MODEL = "claude-opus-5-5"
@@ -24,6 +28,7 @@ ANTHROPIC_DEFAULT_MODEL = "claude-opus-5-5"
 ANTHROPIC_FALLBACK_MODELS = {"claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"}
 BEDROCK_DEFAULT_MODEL = "us.anthropic.claude-opus-5"
 AZURE_DEFAULT_API_VERSION = "2024-10-21"
+STREAM_ATTEMPTS = 3  # a stream that drops midway is retried whole; the SDK only retries before it starts
 # the LiteLLM proxy neatHack gives teams (Claude and Amazon Nova models): https://neatlogs.com/hackathon/models
 LITELLM_DEFAULT_BASE_URL = "https://litellm.vision.aivar.app/v1"
 
@@ -68,15 +73,16 @@ class OpenAILLM:
             _require("AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT")
             client = openai.AzureOpenAI(
                 api_version=os.environ.get("OPENAI_API_VERSION", AZURE_DEFAULT_API_VERSION),
-                max_retries=6, timeout=600)
+                max_retries=3, timeout=600)
         elif provider == "litellm":
             _require("LITELLM_API_KEY")
             client = openai.OpenAI(base_url=os.environ.get("LITELLM_BASE_URL", LITELLM_DEFAULT_BASE_URL),
-                                   api_key=os.environ["LITELLM_API_KEY"], max_retries=6, timeout=600)
+                                   api_key=os.environ["LITELLM_API_KEY"], max_retries=3, timeout=600)
         else:
             _require("OPENAI_API_KEY")
-            client = openai.OpenAI(max_retries=6, timeout=600)
+            client = openai.OpenAI(max_retries=3, timeout=600)
         self._errors = openai.APIError
+        self._dropped = (openai.APIConnectionError, openai.InternalServerError)
         self.client = neatlogs.wrap(client)
         self.model = os.environ["UPSHIFT_MODEL"]
         self.input_tokens = 0
@@ -84,18 +90,28 @@ class OpenAILLM:
 
     def converse(self, system: str, messages: list[dict], tools: list[dict] | None = None,
                  max_tokens: int = 8000) -> dict:
+        # streamed: a proxy in front of the model (the neatHack LiteLLM one) cuts off replies that send nothing
+        # for about a minute, which a long playbook easily does
         kwargs = {"model": self.model, "messages": to_openai(system, messages),
-                  "max_completion_tokens": max_tokens}
+                  "max_completion_tokens": max_tokens, "stream": True, "stream_options": {"include_usage": True}}
         if tools:
             kwargs["tools"] = [openai_tool(t) for t in tools]
-        try:
-            response = self.client.chat.completions.create(**kwargs)
-        except self._errors as exc:
-            raise LLMError(type(exc).__name__, str(exc)) from exc
-        if response.usage:
-            self.input_tokens += response.usage.prompt_tokens
-            self.output_tokens += response.usage.completion_tokens
-        return {"output": {"message": from_openai(response.choices[0].message)}}
+        for attempt in range(1, STREAM_ATTEMPTS + 1):
+            try:
+                message, usage = collect_stream(self.client.chat.completions.create(**kwargs))
+                break
+            except self._dropped as exc:
+                if attempt == STREAM_ATTEMPTS:
+                    raise LLMError(type(exc).__name__, str(exc)) from exc
+                tracing.annotate(failure_class=f"llm:{type(exc).__name__}", recovery="retry_whole_call",
+                                 retry_attempt=attempt)
+                time.sleep(10 * attempt)
+            except self._errors as exc:
+                raise LLMError(type(exc).__name__, str(exc)) from exc
+        if usage:
+            self.input_tokens += usage.prompt_tokens
+            self.output_tokens += usage.completion_tokens
+        return {"output": {"message": from_openai(message)}}
 
 
 class AnthropicLLM:
@@ -293,6 +309,27 @@ def to_openai(system: str, messages: list[dict]) -> list[dict]:
         if text:
             out.append({"role": "user", "content": text})
     return out
+
+
+def collect_stream(chunks) -> tuple:
+    """Rebuild one assistant message (text and tool calls) and the usage from streamed chat chunks."""
+    text, calls, usage = [], {}, None
+    for chunk in chunks:
+        usage = getattr(chunk, "usage", None) or usage
+        for choice in chunk.choices:
+            delta = choice.delta
+            if delta.content:
+                text.append(delta.content)
+            for call in delta.tool_calls or []:
+                slot = calls.setdefault(call.index, {"id": None, "name": "", "arguments": ""})
+                slot["id"] = call.id or slot["id"]
+                if call.function:
+                    slot["name"] = call.function.name or slot["name"]
+                    slot["arguments"] += call.function.arguments or ""
+    message = SimpleNamespace(content="".join(text) or None, tool_calls=[
+        SimpleNamespace(id=c["id"], function=SimpleNamespace(name=c["name"], arguments=c["arguments"]))
+        for _, c in sorted(calls.items())])
+    return message, usage
 
 
 def from_openai(message) -> dict:

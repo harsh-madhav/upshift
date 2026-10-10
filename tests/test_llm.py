@@ -97,3 +97,25 @@ def test_litellm_points_at_the_hackathon_proxy(monkeypatch):
     monkeypatch.delenv("LITELLM_BASE_URL", raising=False)
     llm = make_llm()
     assert str(llm.client.base_url) == "https://litellm.vision.aivar.app/v1/"
+
+
+def test_streamed_tool_calls_are_reassembled():
+    from upshift.llm import collect_stream
+
+    def chunk(content=None, calls=None, usage=None):
+        return NS(choices=[NS(delta=NS(content=content, tool_calls=calls))] if not usage else [], usage=usage)
+
+    def call(index, id=None, name=None, args=None):
+        return NS(index=index, id=id, function=NS(name=name, arguments=args))
+
+    chunks = [chunk("Fixing "), chunk("it."),
+              chunk(calls=[call(0, "c1", "edit_file", '{"path": "a.py", ')]),
+              chunk(calls=[call(1, "c2", "run_tests", "{}")]),
+              chunk(calls=[call(0, args='"old": "x", "new": "y"}')]),
+              chunk(usage=NS(prompt_tokens=10, completion_tokens=5))]
+    message, usage = collect_stream(chunks)
+    assert from_openai(message)["content"] == [
+        {"text": "Fixing it."},
+        {"toolUse": {"toolUseId": "c1", "name": "edit_file", "input": {"path": "a.py", "old": "x", "new": "y"}}},
+        {"toolUse": {"toolUseId": "c2", "name": "run_tests", "input": {}}}]
+    assert usage.prompt_tokens == 10

@@ -1,5 +1,6 @@
 """upshift bump --repo PATH_OR_URL --package NAME [--to VERSION]
 upshift scan --repo PATH_OR_URL
+upshift python --repo PATH_OR_URL --to 3.12
 upshift resume RUN_ID"""
 
 import argparse
@@ -8,7 +9,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import pipeline, tracing, vuln
+from . import pipeline, pyversion, tracing, vuln
 from .llm import LLMConfigError
 from .state import RunState
 
@@ -36,7 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     bump.add_argument("--repo", required=True, help="local path or git URL")
     bump.add_argument("--package", required=True)
     bump.add_argument("--to", help="target version or prefix (default: latest stable)")
-    bump.add_argument("--python", default="3.12", help="Python for the project's venv")
+    bump.add_argument("--python", help="Python for the project's venv (default: its .python-version, else 3.12)")
     bump.add_argument("--fresh-research", action="store_true",
                       help="ignore a cached playbook and research the upgrade again")
     bump.add_argument("--dry-run", action="store_true",
@@ -44,9 +45,18 @@ def main(argv: list[str] | None = None) -> int:
 
     scan = sub.add_parser("scan", help="audit dependencies for known vulnerabilities and fix each one")
     scan.add_argument("--repo", required=True, help="local path or git URL")
-    scan.add_argument("--python", default="3.12", help="Python for the project's venv")
+    scan.add_argument("--python", help="Python for the project's venv (default: its .python-version, else 3.12)")
     scan.add_argument("--dry-run", action="store_true",
                       help="no model calls: fixes that break nothing still complete; others stop after research")
+
+    py = sub.add_parser("python", help="move the project to a newer Python and fix what breaks")
+    py.add_argument("--repo", required=True, help="local path or git URL")
+    py.add_argument("--to", required=True, help="target Python, e.g. 3.12")
+    py.add_argument("--from", dest="from_version", help="current Python (default: the repo's .python-version)")
+    py.add_argument("--fresh-research", action="store_true",
+                    help="ignore a cached playbook and research the upgrade again")
+    py.add_argument("--dry-run", action="store_true",
+                    help="no model calls: set up, baseline, move to the new Python, show what breaks")
 
     resume = sub.add_parser("resume", help="continue a run from its last completed phase")
     resume.add_argument("run_id")
@@ -55,7 +65,14 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     stamp = time.strftime("%Y%m%d-%H%M%S")
     jobs = []
-    if args.command == "bump":
+    if args.command in ("bump", "scan"):
+        args.python = args.python or pyversion.detect(args.repo) or "3.12"
+    if args.command == "python":
+        state = RunState(run_id=f"{stamp}-python-{args.to}", kind="python", source=args.repo, package="python",
+                         wanted=args.to, python=args.from_version or "", fresh_research=args.fresh_research)
+        state.save()
+        jobs, tags = [state], ["python", args.to]
+    elif args.command == "bump":
         state = RunState(run_id=f"{stamp}-{args.package.lower()}", kind="bump", source=args.repo,
                          package=args.package, wanted=args.to, python=args.python,
                          fresh_research=args.fresh_research)

@@ -1,6 +1,7 @@
 """Run inside a throwaway venv: print the public API of one installed distribution as JSON.
 
 Usage: python apidiff_probe.py <distribution-name>
+       python apidiff_probe.py --stdlib      (the interpreter's standard library instead)
 Output: {"module.attr": "signature or kind", ...}
 """
 
@@ -14,6 +15,9 @@ import sys
 import warnings
 
 MAX_SYMBOLS = 20000
+# stdlib modules that are huge, GUI-only, or do something on import (antigravity opens a browser)
+STDLIB_SKIP = {"antigravity", "this", "idlelib", "tkinter", "turtle", "turtledemo", "test", "lib2to3",
+               "ensurepip", "pydoc_data", "venv", "__phello__"}
 
 
 def norm(name: str) -> str:
@@ -26,6 +30,10 @@ def top_level_modules(dist: str) -> list[str]:
         name for name, dists in md.packages_distributions().items()
         if not name.startswith("_") and any(norm(d) == wanted for d in dists)
     )
+
+
+def stdlib_modules() -> list[str]:
+    return sorted(n for n in sys.stdlib_module_names if not n.startswith("_") and n not in STDLIB_SKIP)
 
 
 def describe(obj) -> str:
@@ -42,7 +50,9 @@ def describe(obj) -> str:
 def main() -> None:
     warnings.simplefilter("ignore")
     api: dict[str, str] = {}
-    for top in top_level_modules(sys.argv[1]):
+    stdlib = sys.argv[1] == "--stdlib"
+    limit = MAX_SYMBOLS * 5 if stdlib else MAX_SYMBOLS
+    for top in stdlib_modules() if stdlib else top_level_modules(sys.argv[1]):
         try:
             root = importlib.import_module(top)
         except Exception:
@@ -50,7 +60,7 @@ def main() -> None:
         modules = [root]
         if hasattr(root, "__path__"):
             for info in pkgutil.walk_packages(root.__path__, top + ".", onerror=lambda _: None):
-                if any(part.startswith("_") for part in info.name.split(".")[1:]):
+                if any(part.startswith("_") or part in STDLIB_SKIP for part in info.name.split(".")[1:]):
                     continue
                 try:
                     modules.append(importlib.import_module(info.name))
@@ -72,7 +82,7 @@ def main() -> None:
                     for member, value in sorted(vars(obj).items()):
                         if not member.startswith("_") or member in ("__init__",):
                             api[f"{key}.{member}"] = describe(value) if callable(value) else type(value).__name__
-                if len(api) >= MAX_SYMBOLS:
+                if len(api) >= limit:
                     break
     json.dump(api, sys.stdout)
 
