@@ -1,4 +1,4 @@
-# upshift
+# Upshift
 
 Dependabot opens the PR. Upshift makes it pass.
 
@@ -47,6 +47,7 @@ never committed) or in your shell.
 |---|---|---|
 | `anthropic` | `ANTHROPIC_API_KEY` | `UPSHIFT_MODEL` defaults to `claude-opus-5-5`. Claude's thinking blocks are replayed unchanged and old tool results are trimmed by the API's context editing, so the conversation stays append-only |
 | `azure-openai` | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` | `UPSHIFT_MODEL` is the deployment name |
+| `litellm` | `LITELLM_API_KEY` | A LiteLLM proxy. Defaults to the [neatHack model proxy](https://neatlogs.com/hackathon/models) (Claude and Amazon Nova, e.g. `UPSHIFT_MODEL=claude-sonnet-4.6`); set `LITELLM_BASE_URL` for your own |
 | `openai` | `OPENAI_API_KEY` | Set `OPENAI_BASE_URL` for any OpenAI-compatible service (OpenRouter, Groq, Together, a local server) |
 | `bedrock` | `UPSHIFT_AWS_PROFILE` | An explicit profile is required, so the default AWS account is never billed by accident |
 

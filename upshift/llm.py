@@ -4,11 +4,12 @@ The agent speaks one message format (Bedrock Converse style: text / toolUse / to
 Each provider translates to and from it.
 
 Configure with environment variables (or a git-ignored .env file):
-  UPSHIFT_PROVIDER = anthropic | openai | azure-openai | bedrock
+  UPSHIFT_PROVIDER = anthropic | openai | azure-openai | litellm | bedrock
   UPSHIFT_MODEL    = model name (for Azure: the deployment name; Anthropic defaults to claude-opus-5-5)
   anthropic:    ANTHROPIC_API_KEY (or another credential the Anthropic SDK resolves)
   azure-openai: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, optional OPENAI_API_VERSION
   openai:       OPENAI_API_KEY, optional OPENAI_BASE_URL for any OpenAI-compatible service
+  litellm:      LITELLM_API_KEY, optional LITELLM_BASE_URL (defaults to the neatHack model proxy)
   bedrock:      UPSHIFT_AWS_PROFILE, optional UPSHIFT_AWS_REGION
 """
 
@@ -17,12 +18,14 @@ import os
 
 import neatlogs
 
-PROVIDERS = ("anthropic", "openai", "azure-openai", "bedrock")
+PROVIDERS = ("anthropic", "openai", "azure-openai", "litellm", "bedrock")
 ANTHROPIC_DEFAULT_MODEL = "claude-opus-5-5"
 # models that accept server-side refusal fallbacks (`fallbacks: "default"`)
 ANTHROPIC_FALLBACK_MODELS = {"claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"}
 BEDROCK_DEFAULT_MODEL = "us.anthropic.claude-opus-5"
 AZURE_DEFAULT_API_VERSION = "2024-10-21"
+# the LiteLLM proxy neatHack gives teams (Claude and Amazon Nova models): https://neatlogs.com/hackathon/models
+LITELLM_DEFAULT_BASE_URL = "https://litellm.vision.aivar.app/v1"
 
 
 class LLMConfigError(RuntimeError):
@@ -47,27 +50,29 @@ def make_llm():
     provider = os.environ.get("UPSHIFT_PROVIDER", "").strip().lower()
     if provider == "anthropic":
         return AnthropicLLM()
-    if provider == "azure-openai":
-        return OpenAILLM(azure=True)
-    if provider == "openai":
-        return OpenAILLM(azure=False)
+    if provider in ("openai", "azure-openai", "litellm"):
+        return OpenAILLM(provider)
     if provider == "bedrock":
         return BedrockLLM()
     raise LLMConfigError(f"Set UPSHIFT_PROVIDER to one of: {', '.join(PROVIDERS)}")
 
 
 class OpenAILLM:
-    """OpenAI, Azure OpenAI, or any OpenAI-compatible endpoint (OPENAI_BASE_URL)."""
+    """OpenAI, Azure OpenAI, a LiteLLM proxy, or any OpenAI-compatible endpoint (OPENAI_BASE_URL)."""
 
-    def __init__(self, azure: bool):
+    def __init__(self, provider: str):
         import openai
 
         _require("UPSHIFT_MODEL")
-        if azure:
+        if provider == "azure-openai":
             _require("AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT")
             client = openai.AzureOpenAI(
                 api_version=os.environ.get("OPENAI_API_VERSION", AZURE_DEFAULT_API_VERSION),
                 max_retries=6, timeout=600)
+        elif provider == "litellm":
+            _require("LITELLM_API_KEY")
+            client = openai.OpenAI(base_url=os.environ.get("LITELLM_BASE_URL", LITELLM_DEFAULT_BASE_URL),
+                                   api_key=os.environ["LITELLM_API_KEY"], max_retries=6, timeout=600)
         else:
             _require("OPENAI_API_KEY")
             client = openai.OpenAI(max_retries=6, timeout=600)

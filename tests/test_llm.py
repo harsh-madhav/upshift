@@ -88,3 +88,12 @@ def test_anthropic_defaults_to_opus(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
     llm = make_llm()
     assert llm.model == "claude-opus-5-5" and llm.trims_history_itself
+
+
+def test_litellm_points_at_the_hackathon_proxy(monkeypatch):
+    monkeypatch.setenv("UPSHIFT_PROVIDER", "litellm")
+    monkeypatch.setenv("UPSHIFT_MODEL", "claude-sonnet-4.6")
+    monkeypatch.setenv("LITELLM_API_KEY", "test")
+    monkeypatch.delenv("LITELLM_BASE_URL", raising=False)
+    llm = make_llm()
+    assert str(llm.client.base_url) == "https://litellm.vision.aivar.app/v1/"
