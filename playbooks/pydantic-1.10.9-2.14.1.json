@@ -1,0 +1,260 @@
+{
+  "package": "pydantic",
+  "old": "1.10.9",
+  "new": "2.14.1",
+  "summary": "Pydantic 1.10.9 \u2192 2.14.1 is a major breaking-change upgrade. Almost every public API on BaseModel has been renamed (dict\u2192model_dump, json\u2192model_dump_json, parse_obj\u2192model_validate, copy\u2192model_copy, etc.), the validator decorators changed (@validator\u2192@field_validator, @root_validator\u2192@model_validator), model configuration moved from an inner class Config to a model_config dict, GenericModel was removed, and numerous Field() keyword arguments were renamed or removed. Python 3.8 and 3.9 are no longer supported. The automated migration tool `bump-pydantic` can handle many of these changes mechanically.",
+  "rules": [
+    {
+      "old": "model.dict()",
+      "new": "model.model_dump()",
+      "detect": "\\.dict\\(\\)",
+      "why": "BaseModel.dict() is removed in V2; use model_dump() instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "model.json()",
+      "new": "model.model_dump_json()",
+      "detect": "\\.json\\(\\)",
+      "why": "BaseModel.json() is removed in V2; use model_dump_json() instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "MyModel.parse_obj(data)",
+      "new": "MyModel.model_validate(data)",
+      "detect": "\\.parse_obj\\(",
+      "why": "parse_obj() is removed in V2; use model_validate() instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "MyModel.parse_raw(data)",
+      "new": "MyModel.model_validate_json(data)",
+      "detect": "\\.parse_raw\\(",
+      "why": "parse_raw() is removed in V2; use model_validate_json() instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "MyModel.parse_file(path)",
+      "new": "import json; MyModel.model_validate(json.loads(Path(path).read_text()))",
+      "detect": "\\.parse_file\\(",
+      "why": "parse_file() is removed in V2; load the file manually and pass to model_validate().",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "model.copy()",
+      "new": "model.model_copy()",
+      "detect": "\\.copy\\(\\)",
+      "why": "BaseModel.copy() is removed in V2; use model_copy() instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "MyModel.construct(**data)",
+      "new": "MyModel.model_construct(**data)",
+      "detect": "\\.construct\\(",
+      "why": "construct() is removed in V2; use model_construct() instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "MyModel.schema()",
+      "new": "MyModel.model_json_schema()",
+      "detect": "\\.schema\\(\\)",
+      "why": "schema() is removed in V2; use model_json_schema() instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "MyModel.update_forward_refs()",
+      "new": "MyModel.model_rebuild()",
+      "detect": "\\.update_forward_refs\\(",
+      "why": "update_forward_refs() is removed in V2; use model_rebuild() instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "MyModel.from_orm(obj)",
+      "new": "MyModel.model_validate(obj)  # also set model_config = ConfigDict(from_attributes=True)",
+      "detect": "\\.from_orm\\(",
+      "why": "from_orm() is removed in V2; use model_validate() with from_attributes=True config.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "model.__fields__",
+      "new": "model.model_fields",
+      "detect": "\\.__fields__",
+      "why": "__fields__ is removed in V2; use model_fields instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "class MyModel(BaseModel):\n    class Config:\n        orm_mode = True",
+      "new": "from pydantic import ConfigDict\nclass MyModel(BaseModel):\n    model_config = ConfigDict(from_attributes=True)",
+      "detect": "class Config:",
+      "why": "Inner Config class is deprecated in V2; use model_config = ConfigDict(...) instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "class Config:\n    allow_population_by_field_name = True",
+      "new": "model_config = ConfigDict(populate_by_name=True)",
+      "detect": "allow_population_by_field_name",
+      "why": "Config key allow_population_by_field_name was renamed to populate_by_name.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "class Config:\n    orm_mode = True",
+      "new": "model_config = ConfigDict(from_attributes=True)",
+      "detect": "orm_mode\\s*=",
+      "why": "Config key orm_mode was renamed to from_attributes.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "class Config:\n    schema_extra = {...}",
+      "new": "model_config = ConfigDict(json_schema_extra={...})",
+      "detect": "",
+      "why": "Config key schema_extra was renamed to json_schema_extra.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "class Config:\n    validate_all = True",
+      "new": "model_config = ConfigDict(validate_default=True)",
+      "detect": "validate_all\\s*=",
+      "why": "Config key validate_all was renamed to validate_default.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "class Config:\n    allow_mutation = False",
+      "new": "model_config = ConfigDict(frozen=True)",
+      "detect": "allow_mutation\\s*=",
+      "why": "Config key allow_mutation has been removed; use frozen=True (inverted meaning) instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "class Config:\n    anystr_lower = True",
+      "new": "model_config = ConfigDict(str_to_lower=True)",
+      "detect": "anystr_lower\\s*=",
+      "why": "Config key anystr_lower was renamed to str_to_lower.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "class Config:\n    max_anystr_length = 100",
+      "new": "model_config = ConfigDict(str_max_length=100)",
+      "detect": "max_anystr_length\\s*=",
+      "why": "Config key max_anystr_length was renamed to str_max_length.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "class Config:\n    min_anystr_length = 1",
+      "new": "model_config = ConfigDict(str_min_length=1)",
+      "detect": "min_anystr_length\\s*=",
+      "why": "Config key min_anystr_length was renamed to str_min_length.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "@validator('field_name')\ndef validate_field(cls, v): ...",
+      "new": "@field_validator('field_name')\n@classmethod\ndef validate_field(cls, v): ...",
+      "detect": "@validator\\(",
+      "why": "@validator is deprecated in V2; replace with @field_validator from pydantic.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "@root_validator\ndef validate_all(cls, values): ...",
+      "new": "@model_validator(mode='before')  # or mode='after'\ndef validate_all(cls, values): ...",
+      "detect": "@root_validator",
+      "why": "@root_validator is deprecated in V2; replace with @model_validator.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "@validate_arguments\ndef my_func(x: int): ...",
+      "new": "@validate_call\ndef my_func(x: int): ...",
+      "detect": "@validate_arguments",
+      "why": "@validate_arguments has been renamed to @validate_call in V2.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "from pydantic.generics import GenericModel\nclass MyModel(GenericModel, Generic[T]): ...",
+      "new": "from pydantic import BaseModel\nclass MyModel(BaseModel, Generic[T]): ...",
+      "detect": "from pydantic\\.generics import GenericModel",
+      "why": "pydantic.generics.GenericModel has been removed; inherit from BaseModel with Generic[T] directly.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "class MyModel(BaseModel):\n    __root__: list[str]",
+      "new": "from pydantic import RootModel\nclass MyModel(RootModel[list[str]]): ...",
+      "detect": "__root__\\s*:",
+      "why": "The __root__ field pattern has been replaced with the RootModel class in V2.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "Field(regex='pattern')",
+      "new": "Field(pattern='pattern')",
+      "detect": "Field\\([^)]*regex\\s*=",
+      "why": "Field(regex=...) has been renamed to Field(pattern=...) in V2.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "Field(min_items=1)",
+      "new": "Field(min_length=1)",
+      "detect": "Field\\([^)]*min_items\\s*=",
+      "why": "Field(min_items=...) has been renamed to Field(min_length=...) in V2.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "Field(max_items=10)",
+      "new": "Field(max_length=10)",
+      "detect": "Field\\([^)]*max_items\\s*=",
+      "why": "Field(max_items=...) has been renamed to Field(max_length=...) in V2.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "Field(allow_mutation=False)",
+      "new": "Field(frozen=True)",
+      "detect": "Field\\([^)]*allow_mutation\\s*=",
+      "why": "Field(allow_mutation=...) has been replaced by Field(frozen=...) in V2.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "Field(const=True)",
+      "new": "Use typing.Final or Literal[value] as the type annotation instead",
+      "detect": "Field\\([^)]*const\\s*=",
+      "why": "Field(const=True) has been removed in V2; use typing.Final or Literal type annotations.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "my_list: list[str] = Field(pattern='.*')",
+      "new": "my_list: list[Annotated[str, Field(pattern='.*')]]",
+      "detect": "",
+      "why": "Field constraints are no longer pushed down to generic parameters; use Annotated on the inner type.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "from pydantic import validator\n@validator('x', always=True)\ndef val(cls, v): ...",
+      "new": "Use validate_default=True in Field() and @field_validator",
+      "detect": "always\\s*=\\s*True",
+      "why": "The always=True argument to @validator is replaced by validate_default=True on Field() in V2.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "@root_validator(skip_on_failure=False)",
+      "new": "@model_validator(mode='before')",
+      "detect": "skip_on_failure\\s*=\\s*False",
+      "why": "root_validator(skip_on_failure=False) is no longer supported; use @model_validator(mode='before') instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "class Config:\n    json_encoders = {datetime: lambda v: v.isoformat()}",
+      "new": "@field_serializer('my_field')\ndef serialize_field(self, v): return v.isoformat()",
+      "detect": "json_encoders\\s*=",
+      "why": "json_encoders config is deprecated in V2; use @field_serializer or @model_serializer decorators instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "dataclass.__pydantic_model__",
+      "new": "from pydantic import TypeAdapter; TypeAdapter(MyDataclass)",
+      "detect": "__pydantic_model__",
+      "why": "Pydantic dataclasses no longer have __pydantic_model__; wrap the dataclass with TypeAdapter instead.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    },
+    {
+      "old": "from pydantic import validate_email\nvalidate_email('user@example.com')",
+      "new": "from pydantic import TypeAdapter\nfrom pydantic.networks import EmailStr\nTypeAdapter(EmailStr).validate_python('user@example.com')",
+      "detect": "from pydantic import.*validate_email|pydantic\\.validate_email",
+      "why": "pydantic.validate_email() utility function was removed; validate using EmailStr with TypeAdapter.",
+      "source": "https://docs.pydantic.dev/latest/migration/"
+    }
+  ]
+}

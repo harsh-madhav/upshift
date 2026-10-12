@@ -1,5 +1,6 @@
 """The fix loop: one root cause per round, tests after every round, commit progress, revert regressions."""
 
+import ast
 import re
 
 import neatlogs
@@ -41,7 +42,9 @@ How to work in each round:
 4. Run the most relevant tests with run_tests, then call finish_round with a one-line summary.
 
 Rules: don't edit dependency pins or lockfiles. Don't weaken, skip or delete tests. Don't silence
-deprecation warnings instead of migrating. Paths are relative to the repo root."""
+deprecation warnings instead of migrating. Don't patch the upgraded package, builtins or the import system to
+bring old APIs back. If a test itself uses an API the new version removed, that test can't pass without a person
+updating it: say so in finish_round and move on. Paths are relative to the repo root."""
 
 TOOLS = [
     tool_spec("read_file", "Read a file with line numbers. Optional 1-based start/end lines.",
@@ -114,6 +117,12 @@ class FixLoop:
                 summary = self.converse(prompt)
             except LLMError as exc:
                 code = exc.code
+                if exc.fatal:
+                    # flask-dantic run: the proxy budget ran out mid-round; reverting threw away good edits
+                    # and the next round failed the same way. Keep the edits for `upshift resume`.
+                    tracing.annotate(failure_class=f"llm:{code}", recovery="stop_keep_changes")
+                    self.state.round_log.append(f"round {n}: model call failed ({code}); stopped, edits kept")
+                    raise
                 tracing.annotate(failure_class=f"llm:{code}", recovery="revert_and_retry_next_round")
                 self.revert()
                 self.state.round_log.append(f"round {n}: model call failed ({code}); changes reverted")
@@ -243,7 +252,7 @@ class FixLoop:
             end = min(args.get("end") or start + 399, len(lines), start + 399)
             return "\n".join(f"{i:5}  {lines[i - 1]}" for i in range(start, end + 1)) or "(empty file)"
         if name == "edit_file":
-            return edit_file(ws, args["path"], args["old"], args["new"])
+            return edit_file(ws, args["path"], args["old"], args["new"], self.state.package)
         if name == "search_code":
             return search_code(ws, args["pattern"], args.get("glob") or "*.py")
         if name == "run_tests":
@@ -274,10 +283,21 @@ def failure_digest(output: str, limit: int = 6000) -> str:
 
 
 def compact(messages: list[dict]) -> None:
-    """Shorten tool results older than the last few steps; each model call resends the whole history."""
+    """Shorten tool results older than the last few steps; each model call resends the whole history.
+
+    The newest read of each file stays whole: shortening it made the model read the file again."""
+    newest_read = {}  # path -> toolUseId of its latest read_file
+    for message in messages:
+        if message["role"] == "assistant":
+            for use in tool_uses(message):
+                if use["name"] == "read_file":
+                    newest_read[use["input"].get("path")] = use["toolUseId"]
+    keep = set(newest_read.values())
     result_turns = [m for m in messages if m["role"] == "user" and any("toolResult" in b for b in m["content"])]
     for message in result_turns[:-KEEP_RECENT_RESULTS]:
         for block in message["content"]:
+            if block.get("toolResult", {}).get("toolUseId") in keep:
+                continue
             for part in block.get("toolResult", {}).get("content", []):
                 text = part.get("text", "")
                 if len(text) > ELIDE_OVER:
@@ -286,20 +306,67 @@ def compact(messages: list[dict]) -> None:
 
 
 @neatlogs.span(kind="TOOL", tool_name="edit_file")
-def edit_file(ws: Workspace, path: str, old: str, new: str) -> str:
+def edit_file(ws: Workspace, path: str, old: str, new: str, package: str = "") -> str:
     target = ws.resolve(path)
-    if is_test_file(target.relative_to(ws.repo.resolve())):
+    rel = target.relative_to(ws.repo.resolve())
+    if is_test_file(rel) or (rel.name == "pyproject.toml" and "pytest" in old + new):
         # the tests are the spec the upgrade is checked against; a prompt rule alone was not enough
         tracing.annotate(failure_class="test_edit_refused", recovery="returned_to_model")
-        raise ValueError(f"{path} is a test file. Tests define the behaviour to keep and must not change; "
-                         "change the application code instead.")
+        raise ValueError(f"{path} is a test file or test configuration. Tests define the behaviour to keep and "
+                         "how it is checked; they must not change. Change the application code instead.")
     text = target.read_text()
     count = text.count(old)
     if count != 1:
         raise ValueError(f"`old` matched {count} times in {path}; it must match exactly once. "
                          "Re-read the file and include more surrounding lines.")
-    target.write_text(text.replace(old, new, 1))
+    updated = text.replace(old, new, 1)
+    if target.suffix == ".py" and (patches := runtime_patches(updated, package) - runtime_patches(text, package)):
+        # flask-dantic runs: the model put ModelField back into pydantic.fields (through an import alias) and
+        # replaced builtins.__build_class__ so the tests' v1 models silently became pydantic.v1 models
+        tracing.annotate(failure_class="runtime_patch_refused", recovery="returned_to_model")
+        raise ValueError(f"this edit patches code it doesn't own ({'; '.join(sorted(patches))}). Bringing old APIs "
+                         f"back that way makes old code run without migrating it. Change the code that uses them; "
+                         "if a test itself needs a removed API, report that in finish_round.")
+    target.write_text(updated)
     return f"edited {path}"
+
+
+def runtime_patches(source: str, package: str) -> set[str]:
+    """Assignments into the upgraded package (under any import alias), builtins or sys.modules."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return set()
+    module = package.replace("-", "_")
+    owned_elsewhere = {"builtins", "sys"}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            owned_elsewhere |= {a.asname or a.name.split(".")[0] for a in node.names
+                                if module and (a.name == module or a.name.startswith(module + "."))}
+        elif isinstance(node, ast.ImportFrom) and module and (node.module or "").split(".")[0] == module:
+            owned_elsewhere |= {a.asname or a.name for a in node.names}
+    found = set()
+    for node in ast.walk(tree):
+        targets = node.targets if isinstance(node, ast.Assign) else (
+            [node.target] if isinstance(node, (ast.AugAssign, ast.AnnAssign)) else [])
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in ("setattr", "delattr"):
+            targets = node.args[:1]
+            obj = node.args[0] if node.args else None
+            if isinstance(obj, (ast.Name, ast.Call)):
+                targets = [ast.Attribute(value=obj, attr="*")]
+        for target in targets:
+            base = target
+            while isinstance(base, (ast.Attribute, ast.Subscript)):
+                base = base.value
+            if base is target:
+                continue
+            if (isinstance(base, ast.Name) and base.id in owned_elsewhere) or isinstance(base, ast.Call):
+                found.add(ast.unparse(target) if not isinstance(target, ast.Attribute) or target.attr != "*"
+                          else f"setattr({ast.unparse(target.value)}, ...)")
+        if isinstance(node, ast.Name) and node.id == "__build_class__" or (
+                isinstance(node, ast.Attribute) and node.attr == "__build_class__"):
+            found.add("__build_class__")
+    return found
 
 
 @neatlogs.span(kind="TOOL", tool_name="search_code")

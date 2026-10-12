@@ -112,6 +112,12 @@ def baseline(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
     run = ws.run_tests()
     state.baseline_failing = sorted(run.failing)
     state.baseline_passed = run.passed
+    if not run.passed:
+        # with nothing passing before the change, "no new failures" after it would prove nothing
+        (state.dir / "baseline.txt").write_text(run.output)
+        tracing.annotate(failure_class="baseline_broken", recovery="stop")
+        raise Stop(f"no tests pass before any change ({run.summary}), so a fix can't be verified. "
+                   f"Make the test suite run first; output in {state.dir / 'baseline.txt'}")
     graph.verify(str(ws.repo), ws.test_cmd, record_baseline=str(state.dir / "verify-baseline.json"))
     tracing.annotate(baseline_passed=run.passed, baseline_failing=len(run.failing))
 

@@ -44,6 +44,12 @@ class LLMError(RuntimeError):
         super().__init__(f"{code}: {message}"[:500])
         self.code = code
 
+    @property
+    def fatal(self) -> bool:
+        """Retrying can't help: bad key, unknown model, or the key's budget is spent."""
+        return (self.code in ("AuthenticationError", "PermissionDeniedError", "NotFoundError")
+                or "budget" in str(self).lower())
+
 
 def _require(*names: str) -> None:
     missing = [n for n in names if not os.environ.get(n)]

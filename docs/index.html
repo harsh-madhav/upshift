@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upshift</title>
+<meta name="description" content="Upshift is an agent that fixes the code a version change breaks: researched, cited, verified against your tests.">
+<meta property="og:title" content="Upshift: your deps move, your code keeps up">
+<meta property="og:description" content="An agent that fixes the code a version change breaks: researched, cited, verified against your tests.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2314161A'/%3E%3Cpath d='M16 7v18M9 14l7-7 7 7' stroke='%23FFD12E' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0B0C0E;
+    --surface: #14161A;
+    --rule: #24272D;
+    --text: #E6E7E3;
+    --muted: #8A8F98;
+    --yellow: #FFD12E;
+    --blue: #5B82FF;
+    --green: #2BD484;
+    --red: #FF6369;
+    --display: "Archivo", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --gutter: max(16px, calc((100vw - 1120px) / 2));
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 var(--display);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: inherit; }
+  code { font-family: var(--mono); font-size: .9em; }
+  .kicker { font: 600 12px var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--muted); margin: 0 0 18px; }
+  .kicker b { color: var(--yellow); font-weight: 600; }
+
+  /* nav */
+  .nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between;
+    padding: 14px var(--gutter); background: rgba(11, 12, 14, .8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(36, 39, 45, .6);
+  }
+  .mark { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 800; font-size: 20px; letter-spacing: -.01em; }
+  .mark i {
+    width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center;
+    background: var(--surface); border: 1px solid var(--rule); color: var(--yellow); font-style: normal; font-size: 17px;
+  }
+  .navlink { color: var(--muted); text-decoration: none; font-size: 14px; }
+  .navlink:hover { color: var(--text); }
+  .tabs { display: flex; gap: 2px; padding: 4px; border: 1px solid var(--rule); border-radius: 999px; background: rgba(20, 22, 26, .85); backdrop-filter: blur(8px); }
+  .tabs a { padding: 7px 14px; border-radius: 999px; font-size: 13.5px; font-weight: 600; color: var(--muted); text-decoration: none; white-space: nowrap; transition: color .2s, background .2s; }
+  .tabs a:hover { color: var(--text); }
+  .tabs a.on { background: var(--yellow); color: var(--bg); }
+  #commands, #quickstart { scroll-margin-top: 80px; }
+
+  /* buttons */
+  .ctas { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 999px;
+    text-decoration: none; font-weight: 700; font-size: 15px; border: 1px solid var(--rule); background: rgba(11, 12, 14, .6);
+    transition: transform .15s, border-color .15s;
+  }
+  .btn:hover { transform: translateY(-1px); border-color: var(--muted); }
+  .btn.primary { background: var(--yellow); color: var(--bg); border-color: var(--yellow); }
+  .round {
+    width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--rule);
+    text-decoration: none; font-size: 18px; animation: nudge 2s ease-in-out infinite;
+  }
+  @keyframes nudge { 50% { transform: translateY(6px); } }
+
+  /* the scroll story: a tall section whose stage stays pinned while scenes scrub */
+  .story { position: relative; height: 560vh; }
+  .stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
+  #ridges { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .grain {
+    position: absolute; inset: 0; pointer-events: none; opacity: .08; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .scene {
+    position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center;
+    padding: 88px var(--gutter) 72px; opacity: 0; pointer-events: none; will-change: opacity, transform;
+  }
+  .scene.live { pointer-events: auto; }
+
+  .display { margin: 0 0 24px; font-size: clamp(38px, 8.2vw, 118px); line-height: .94; letter-spacing: -.02em; text-transform: uppercase; font-stretch: 112%; }
+  .display span { display: block; }
+  .display .thin { font-weight: 220; }
+  .display .bold { font-weight: 850; color: var(--yellow); }
+  .sub { color: var(--muted); font-size: clamp(17px, 2vw, 21px); max-width: 560px; margin: 0 0 32px; }
+
+  /* hero intro: lines rise out of a mask on load */
+  .rise { overflow: hidden; }
+  .rise > * { display: block; animation: up 1s cubic-bezier(.2, .8, .2, 1) both; }
+  .rise:nth-child(2) > * { animation-delay: .12s; }
+  @keyframes up { from { transform: translateY(105%); } }
+  .fade-in { animation: fade 1.2s .5s both; }
+  @keyframes fade { from { opacity: 0; } }
+
+  /* bump scene */
+  .pkg { font: 600 clamp(16px, 2vw, 22px) var(--mono); color: var(--muted); margin: 0 0 6px; }
+  .odo { font: 600 clamp(64px, 15vw, 196px)/1 var(--mono); letter-spacing: -.04em; display: flex; margin: 0 0 28px; }
+  .slot { display: inline-block; height: 1em; overflow: hidden; }
+  .roll { display: block; will-change: transform; }
+  .roll i { display: block; height: 1em; font-style: normal; }
+  .roll i:last-child { color: var(--yellow); }
+  .meter {
+    display: inline-flex; align-items: center; gap: 10px; align-self: flex-start; padding: 10px 16px; border-radius: 999px;
+    border: 1px solid var(--rule); background: rgba(20, 22, 26, .8); font: 600 15px var(--mono); transition: color .3s, border-color .3s;
+  }
+  .meter::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: currentColor; box-shadow: 0 0 12px currentColor; }
+  .meter.ok { color: var(--green); }
+  .meter.bad { color: var(--red); border-color: color-mix(in srgb, var(--red) 50%, var(--rule)); }
+  .cap { color: var(--muted); font-size: clamp(16px, 1.8vw, 19px); margin: 18px 0 0; max-width: 520px; }
+
+  /* fix scene */
+  .h2 { margin: 0 0 22px; font-size: clamp(26px, 4.2vw, 52px); line-height: 1.02; letter-spacing: -.02em; font-stretch: 108%; font-weight: 800; max-width: 820px; }
+  .h2 em { font-style: normal; color: var(--yellow); }
+  .diff { max-width: 780px; border: 1px solid var(--rule); border-radius: 12px; background: rgba(20, 22, 26, .92); overflow: hidden; }
+  .diff-head { display: flex; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--rule); font: 12px var(--mono); color: var(--muted); }
+  .diff-head b { color: var(--text); font-weight: 600; }
+  .diff-body { padding: 8px 0; font: 13px/1.65 var(--mono); }
+  .pair .del, .pair .add > div { padding: 0 14px; white-space: pre-wrap; word-break: break-word; }
+  .pair .del { color: var(--text); transition: color .3s, background .3s; }
+  .pair .add { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s ease; }
+  .pair .add > div { overflow: hidden; color: var(--green); background: rgba(43, 212, 132, .08); }
+  .pair.on .del { color: var(--red); background: rgba(255, 99, 105, .08); text-decoration: line-through; text-decoration-color: rgba(255, 99, 105, .6); }
+  .pair.on .add { grid-template-rows: 1fr; }
+  .cite { margin: 14px 0 0; font: 12px var(--mono); color: var(--muted); }
+  .cite b { color: var(--yellow); font-weight: 600; }
+
+  /* verify scene */
+  .big { font: 600 clamp(96px, 22vw, 280px)/.9 var(--mono); letter-spacing: -.05em; color: var(--green); margin: 0 0 12px; }
+  .big span { color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 0; }
+  .chips span { padding: 7px 12px; border: 1px solid var(--rule); border-radius: 999px; font: 12.5px var(--mono); color: var(--muted); background: rgba(20, 22, 26, .8); }
+
+  /* pipeline rail + progress */
+  .rail { position: absolute; right: var(--gutter); top: 50%; transform: translateY(-50%); transition: opacity .3s; list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; font: 12px var(--mono); }
+  .rail li { display: flex; align-items: center; justify-content: flex-end; gap: 10px; color: #4A4F57; transition: color .3s; }
+  .rail li::after { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 1px solid currentColor; transition: background .3s; }
+  .rail li.done { color: var(--muted); }
+  .rail li.done::after { background: var(--muted); }
+  .rail li.on { color: var(--yellow); }
+  .rail li.on::after { background: var(--yellow); box-shadow: 0 0 10px var(--yellow); }
+  .progress { position: absolute; left: var(--gutter); right: var(--gutter); bottom: 24px; display: flex; align-items: center; gap: 14px; font: 12px var(--mono); color: var(--muted); }
+  .progress .track { flex: 1; height: 2px; background: var(--rule); border-radius: 2px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 100%; background: var(--yellow); transform-origin: left; transform: scaleX(0); }
+  #stageName { min-width: 9ch; color: var(--yellow); }
+
+  /* ticker */
+  .ticker { overflow: hidden; border-block: 1px solid var(--rule); padding: 18px 0; }
+  .ticker .track { display: flex; width: max-content; animation: marquee 38s linear infinite; }
+  .ticker ul { display: flex; margin: 0; padding: 0; list-style: none; }
+  .ticker li { padding: 0 28px; font: 600 15px var(--mono); white-space: nowrap; color: var(--muted); }
+  .ticker li b { color: var(--green); font-weight: 600; }
+  .ticker li::before { content: "↑ "; color: var(--yellow); }
+  @keyframes marquee { to { transform: translateX(-50%); } }
+
+  /* regular sections after the story */
+  .wrap { padding: 0 var(--gutter); }
+  section.block { padding: 96px 0 0; }
+  .lede { font-size: clamp(26px, 4vw, 44px); font-weight: 800; letter-spacing: -.02em; line-height: 1.05; font-stretch: 108%; margin: 0 0 32px; max-width: 760px; }
+
+  .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .card { border: 1px solid var(--rule); border-radius: 14px; padding: 22px; background: var(--surface); transition: border-color .2s, transform .2s; }
+  .card:hover { border-color: #3A3E46; transform: translateY(-2px); }
+  .card h3 { margin: 0 0 6px; font: 600 18px var(--mono); color: var(--yellow); }
+  .card .what { margin: 0 0 16px; font-size: 15px; }
+  .card code.run { display: block; padding: 10px 12px; border-radius: 8px; background: var(--bg); border: 1px solid var(--rule); font-size: 12.5px; color: var(--muted); word-break: break-word; }
+  .card .res { margin: 14px 0 0; font-size: 13.5px; color: var(--muted); }
+  .card .res strong { color: var(--green); font-weight: 600; }
+
+  .steps { display: grid; gap: 10px; }
+  .step { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start; }
+  .step > span { font: 600 13px/40px var(--mono); color: var(--muted); }
+  .code { position: relative; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; min-width: 0; }
+  .code pre { margin: 0; padding: 10px 76px 10px 14px; font: 13.5px/20px var(--mono); overflow-x: auto; }
+  .code pre .c { color: var(--muted); }
+  .copy {
+    position: absolute; top: 6px; right: 6px; font: 600 12px var(--mono); padding: 5px 9px; border-radius: 6px;
+    background: var(--bg); color: var(--muted); border: 1px solid var(--rule); cursor: pointer;
+  }
+  .copy:hover { color: var(--text); }
+  .copy.ok { color: var(--green); border-color: var(--green); }
+  .note { color: var(--muted); font-size: 14px; margin: 18px 0 0; }
+  .note code { color: var(--text); }
+
+  footer { margin: 120px var(--gutter) 0; padding: 28px 0 40px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+  .reveal { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+
+  @media (max-width: 860px) {
+    .rail { display: none; }
+    .cards { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .nav { flex-wrap: wrap; row-gap: 12px; padding-top: 14px; }
+    .tabs { order: 3; width: 100%; }
+    .tabs a { flex: 1; text-align: center; padding: 7px 4px; font-size: 13px; }
+    #commands, #quickstart { scroll-margin-top: 120px; }
+  }
+  @media (max-width: 480px) {
+    .scene { padding: 116px 16px 64px; }
+    .diff-body { font-size: 11.5px; }
+    .diff-head span:last-child { display: none; }
+    .step { grid-template-columns: 1fr; gap: 4px; }
+    .step > span { line-height: 1; }
+    .code pre { white-space: pre-wrap; word-break: break-word; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .rise > *, .fade-in, .round { animation: none; }
+    .ticker .track { animation: none; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+    .btn, .card, .meter, .pair .del, .pair .add, .rail li, .tabs a { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a class="mark" href="#"><i>↑</i>upshift</a>
+  <div class="tabs" id="tabs">
+    <a href="#story" data-jump>How it works</a>
+    <a href="#commands">Commands</a>
+    <a href="#quickstart">Quickstart</a>
+  </div>
+  <a class="navlink" href="https://github.com/harsh-madhav/upshift">GitHub ↗</a>
+</nav>
+
+<section class="story" id="story">
+  <div class="stage">
+    <canvas id="ridges" aria-hidden="true"></canvas>
+    <div class="grain" aria-hidden="true"></div>
+
+    <div class="scene" data-in="0" data-out=".15">
+      <p class="kicker fade-in">pydantic · jinja2 · python · CVEs · API drift</p>
+      <h1 class="display">
+        <span class="rise"><span class="thin">Your deps move.</span></span>
+        <span class="rise"><span class="bold">Your code keeps up.</span></span>
+      </h1>
+      <p class="sub fade-in">Upshift is an agent that fixes the code a version change breaks: researched, cited, and verified against your tests.</p>
+      <div class="ctas fade-in">
+        <a class="btn primary" href="https://github.com/harsh-madhav/upshift">View on GitHub ↗</a>
+        <a class="round" href="#story" data-jump aria-label="See how it works">↓</a>
+      </div>
+    </div>
+
+    <div class="scene" data-in=".17" data-out=".39">
+      <p class="kicker"><b>01</b> &nbsp;bump</p>
+      <p class="pkg">pydantic</p>
+      <div class="odo" id="odo" aria-label="1.10.13 to 2.14.0"></div>
+      <div class="meter ok" id="meter">16/16 tests passing</div>
+      <p class="cap" id="bumpCap">Baseline recorded before anything changes.</p>
+    </div>
+
+    <div class="scene" data-in=".41" data-out=".65">
+      <p class="kicker"><b>02</b> &nbsp;research → fix</p>
+      <p class="h2">It reads the changelog, writes a <em>cited playbook</em>, then fixes the code.</p>
+      <div class="diff">
+        <div class="diff-head"><b>shop/models.py · shop/orders.py</b><span>rules applied <b id="applied">0</b>/6</span></div>
+        <div class="diff-body" id="diff"></div>
+      </div>
+      <p class="cite">source for every rule ↳ <b>docs.pydantic.dev/latest/migration</b> + API diff of both versions</p>
+    </div>
+
+    <div class="scene" data-in=".67" data-out=".84">
+      <p class="kicker"><b>03</b> &nbsp;verify → report</p>
+      <div class="big"><b id="vcount">0</b><span>/16</span></div>
+      <p class="cap">tests passing · 0 new failures against the pre-upgrade baseline.</p>
+      <div class="chips"><span>3 files changed</span><span>1 fix round</span><span>UPSHIFT_REPORT.md written</span></div>
+    </div>
+
+    <div class="scene" data-in=".86" data-out="1.1">
+      <p class="kicker">bump · scan · python · watch</p>
+      <h2 class="display">
+        <span class="thin">Dependabot opens the PR.</span>
+        <span class="bold">Upshift makes it pass.</span>
+      </h2>
+      <div class="ctas">
+        <a class="btn primary" href="https://github.com/harsh-madhav/upshift">View on GitHub ↗</a>
+        <a class="btn" href="#quickstart">Quickstart ↓</a>
+      </div>
+    </div>
+
+    <ol class="rail" id="rail" aria-label="Pipeline">
+      <li>setup</li><li>baseline</li><li>bump</li><li>research</li><li>fix</li><li>verify</li><li>report</li>
+    </ol>
+    <div class="progress" aria-hidden="true"><span id="stageName">scroll</span><span class="track"><i id="bar"></i></span></div>
+  </div>
+</section>
+
+<div class="ticker" aria-label="Real runs on the demo app">
+  <div class="track">
+    <ul>
+      <li>pydantic 1.10 → 2.14 <b>16 passing</b></li>
+      <li>jinja2 2.11 → 3.1.6 <b>4 CVEs fixed</b></li>
+      <li>requests 2.31 → 2.33 <b>pin only, no model calls</b></li>
+      <li>python 3.10 → 3.12 <b>26 passing</b></li>
+      <li>acme API v1 → v2 <b>migrated before sunset</b></li>
+    </ul>
+    <ul aria-hidden="true">
+      <li>pydantic 1.10 → 2.14 <b>16 passing</b></li>
+      <li>jinja2 2.11 → 3.1.6 <b>4 CVEs fixed</b></li>
+      <li>requests 2.31 → 2.33 <b>pin only, no model calls</b></li>
+      <li>python 3.10 → 3.12 <b>26 passing</b></li>
+      <li>acme API v1 → v2 <b>migrated before sunset</b></li>
+    </ul>
+  </div>
+</div>
+
+<main class="wrap">
+  <section class="block reveal" id="commands">
+    <p class="kicker"><b>↑</b> &nbsp;four commands</p>
+    <p class="lede">Upgrade one package, fix every known vulnerability, move to a newer Python, or get off an API before it shuts down.</p>
+    <div class="cards">
+      <div class="card">
+        <h3>bump</h3>
+        <p class="what">Upgrade a package and fix the code it breaks.</p>
+        <code class="run">upshift bump --repo . --package pydantic --to 2</code>
+        <p class="res">pydantic 1 → 2: <strong>16/16 passing</strong>, only models and orders changed.</p>
+      </div>
+      <div class="card">
+        <h3>scan</h3>
+        <p class="what">Find vulnerable deps (pip-audit / OSV) and fix each one.</p>
+        <code class="run">upshift scan --repo .</code>
+        <p class="res">jinja2: <strong>4 CVEs fixed</strong>, 21 passing. requests: pin change only, no model calls.</p>
+      </div>
+      <div class="card">
+        <h3>python</h3>
+        <p class="what">Move the Python version everywhere it's pinned, then fix.</p>
+        <code class="run">upshift python --repo . --to 3.12</code>
+        <p class="res">3.10 → 3.12: <strong>26 passing</strong>, 0 new failures.</p>
+      </div>
+      <div class="card">
+        <h3>watch</h3>
+        <p class="what">Spot third-party APIs being retired (Deprecation / Sunset headers in neatlogs traces) and migrate before the shutdown.</p>
+        <code class="run">upshift watch --repo . --neatlogs</code>
+        <p class="res">acme v1 → v2: 22 deprecated calls found, <strong>30/30 passing</strong> after the sunset.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block reveal" id="quickstart">
+    <p class="kicker"><b>↑</b> &nbsp;quickstart</p>
+    <p class="lede">Try it on the bundled demo app in about a minute.</p>
+    <div class="steps">
+      <div class="step"><span>1</span><div class="code"><pre>git clone https://github.com/harsh-madhav/upshift.git &amp;&amp; cd upshift</pre><button class="copy">copy</button></div></div>
+      <div class="step"><span>2</span><div class="code"><pre>uv sync</pre><button class="copy">copy</button></div></div>
+      <div class="step"><span>3</span><div class="code"><pre>uv run upshift bump --repo demo/shop_app --package pydantic --to 2 --dry-run  <span class="c"># no key needed: shows what breaks</span></pre><button class="copy">copy</button></div></div>
+      <div class="step"><span>4</span><div class="code"><pre>cp .env.example .env  <span class="c"># set UPSHIFT_PROVIDER and your key</span></pre><button class="copy">copy</button></div></div>
+      <div class="step"><span>5</span><div class="code"><pre>uv run upshift bump --repo demo/shop_app --package pydantic --to 2</pre><button class="copy">copy</button></div></div>
+    </div>
+    <p class="note">Needs Python 3.11+, <code>uv</code>, and optionally the Entire CLI (<code>entire plugin install graph</code>) for code-graph tools.<br>
+      Providers: <code>anthropic</code> · <code>openai</code> · <code>azure-openai</code> · <code>litellm</code> · <code>bedrock</code>. Bring your own key.<br>
+      Crashed run? <code>uv run upshift resume &lt;run-id&gt;</code></p>
+  </section>
+</main>
+
+<footer>
+  <a href="https://github.com/harsh-madhav/upshift">github.com/harsh-madhav/upshift</a>
+</footer>
+
+<script>
+(() => {
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const span = (p, a, b) => clamp((p - a) / (b - a));
+  const ease = (t) => t * t * (3 - 2 * t);
+
+  // Real lines from the pydantic 1 -> 2 run on demo/shop_app.
+  const PAIRS = [
+    ["from pydantic import …, root_validator, validator", "from pydantic import …, field_validator, model_validator"],
+    ['Sku = constr(regex=r"^[A-Z]{3}-\\d{4}$")', 'Sku = constr(pattern=r"^[A-Z]{3}-\\d{4}$")'],
+    ['@validator("email")', '@field_validator("email")'],
+    ["    orm_mode = True", "model_config = ConfigDict(from_attributes=True)"],
+    ["@root_validator", '@model_validator(mode="after")'],
+    ['data = order.dict(include={"id", "coupon"})', 'data = order.model_dump(include={"id", "coupon"})'],
+  ];
+  const diff = document.getElementById("diff");
+  const pairs = PAIRS.map(([del, add]) => {
+    const el = document.createElement("div");
+    el.className = "pair";
+    el.innerHTML = '<div class="del"></div><div class="add"><div></div></div>';
+    el.querySelector(".del").textContent = "- " + del;
+    el.querySelector(".add > div").textContent = "+ " + add;
+    diff.appendChild(el);
+    return el;
+  });
+
+  // Odometer: each slot rolls from the old character to the new one.
+  const OLD = "1.10.13", NEW = "2.14.0";
+  const odo = document.getElementById("odo");
+  const rolls = [...OLD].map((ch, i) => {
+    const slot = document.createElement("span");
+    slot.className = "slot";
+    slot.innerHTML = `<span class="roll"><i>${ch}</i><i>${NEW[i] || " "}</i></span>`;
+    odo.appendChild(slot);
+    return slot.firstChild;
+  });
+
+  const scenes = [...document.querySelectorAll(".scene")];
+  const railEl = document.getElementById("rail");
+  const rail = [...railEl.children];
+  const STAGES = [["setup", .08], ["baseline", .17], ["bump", .25], ["research", .41], ["fix", .49], ["verify", .67], ["report", .78]];
+  const story = document.getElementById("story");
+  const meter = document.getElementById("meter");
+  const bumpCap = document.getElementById("bumpCap");
+  const applied = document.getElementById("applied");
+  const vcount = document.getElementById("vcount");
+  const bar = document.getElementById("bar");
+  const tabs = [...document.querySelectorAll("#tabs a")];
+  const cmds = document.getElementById("commands");
+  const quick = document.getElementById("quickstart");
+  const stageName = document.getElementById("stageName");
+  let p = 0;
+
+  const update = () => {
+    const r = story.getBoundingClientRect();
+    p = clamp(-r.top / (r.height - innerHeight));
+
+    scenes.forEach((s, i) => {
+      const a = +s.dataset.in, b = +s.dataset.out;
+      const fadeIn = i === 0 ? 1 : span(p, a, a + .04);
+      const o = fadeIn * (1 - span(p, b - .04, b));
+      s.style.opacity = o;
+      s.style.transform = `translateY(${(1 - fadeIn) * 30 - span(p, b - .04, b) * 30}px)`;
+      s.classList.toggle("live", o > .5);
+    });
+
+    // bump: baseline green, roll the version, then the suite breaks
+    const t = span(p, .19, .37);
+    rolls.forEach((roll, i) => { roll.style.transform = `translateY(${-ease(span(t, .25 + i * .04, .55 + i * .04))}em)`; });
+    const broken = t > .72;
+    meter.className = "meter " + (broken ? "bad" : "ok");
+    meter.textContent = broken ? "0/16 tests passing" : "16/16 tests passing";
+    bumpCap.textContent = t < .25 ? "Baseline recorded before anything changes."
+      : broken ? "Bumped. The test suite now fails at import." : "Rewriting the pin, installing the new version…";
+
+    // fix: apply playbook rules one by one
+    const n = Math.floor(span(p, .43, .61) * PAIRS.length + .001);
+    pairs.forEach((el, i) => el.classList.toggle("on", i < n));
+    applied.textContent = n;
+
+    // verify: count up to 16
+    vcount.textContent = Math.round(16 * ease(span(p, .68, .76)));
+
+    let cur = -1;
+    STAGES.forEach(([, at], i) => { if (p >= at) cur = i; });
+    rail.forEach((li, i) => { li.classList.toggle("done", i < cur); li.classList.toggle("on", i === cur); });
+    railEl.style.opacity = 1 - span(p, .84, .87);
+    stageName.textContent = cur < 0 ? "scroll" : p > .84 ? "done ✓" : STAGES[cur][0];
+    bar.style.transform = `scaleX(${p})`;
+
+    // highlight the tab for the part of the page in view
+    const past = (el) => el.getBoundingClientRect().top < innerHeight * .5;
+    const active = past(quick) ? 2 : past(cmds) ? 1 : p > .15 ? 0 : -1;
+    tabs.forEach((a, i) => a.classList.toggle("on", i === active));
+
+    if (reduced) draw(0);
+  };
+
+  // Ridgeline mountains: grow as the story goes up, shake red when the build breaks, settle green when it passes.
+  const canvas = document.getElementById("ridges");
+  const ctx = canvas.getContext("2d");
+  let W = 0, H = 0;
+  const resize = () => {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    W = canvas.width = canvas.clientWidth * dpr;
+    H = canvas.height = canvas.clientHeight * dpr;
+  };
+  const mix = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
+  const YEL = [255, 209, 46], RED = [255, 99, 105], GRN = [43, 212, 132];
+
+  function draw(time) {
+    const red = span(p, .31, .35) * (1 - span(p, .47, .6));
+    const green = span(p, .66, .72) * (1 - span(p, .84, .9));
+    const col = mix(mix(YEL, RED, red), GRN, green);
+    const rise = .3 + .7 * ease(p);
+    const lines = 24, pts = 96, narrow = W < 900;
+    ctx.clearRect(0, 0, W, H);
+    ctx.lineWidth = Math.max(1, W / 1400);
+    for (let i = 0; i < lines; i++) {
+      const d = i / (lines - 1);
+      const y0 = H * (.5 + d * .56);
+      ctx.beginPath();
+      for (let j = 0; j < pts; j++) {
+        const x = j / (pts - 1);
+        const peak = Math.exp(-((x - (narrow ? .62 : .7)) ** 2) / .012) + .6 * Math.exp(-((x - .3) ** 2) / .02)
+          + .3 * Math.exp(-((x - .9) ** 2) / .006);
+        const n = Math.sin(x * 13 + i * 1.7 + time * .0005) * .5 + Math.sin(x * 29 - i * .9 + time * .0011) * .3;
+        const jitter = red * Math.sin(x * 90 + time * .03 + i) * .5;
+        const y = y0 - H * .3 * rise * peak * (.55 + .45 * Math.sin(i * .7 + 1)) - (n + jitter) * H * .012 * (.4 + peak);
+        j ? ctx.lineTo(x * W, y) : ctx.moveTo(x * W, y);
+      }
+      ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+      ctx.fillStyle = "#0B0C0E";
+      ctx.fill();
+      ctx.strokeStyle = `rgba(${col}, ${.12 + .5 * d})`;
+      ctx.stroke();
+    }
+  }
+
+  let visible = true;
+  const loop = (time) => { if (visible) draw(time); requestAnimationFrame(loop); };
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; }).observe(story);
+
+  resize();
+  addEventListener("resize", () => { resize(); update(); });
+  let ticking = false;
+  addEventListener("scroll", () => {
+    if (!ticking) { ticking = true; requestAnimationFrame(() => { ticking = false; update(); }); }
+  }, { passive: true });
+  update();
+  if (!reduced) requestAnimationFrame(loop);
+
+  // "How it works" and "↓" jump to the start of the bump scene.
+  document.querySelectorAll("[data-jump]").forEach((a) => a.addEventListener("click", (e) => {
+    e.preventDefault();
+    scrollTo({ top: story.offsetTop + (story.offsetHeight - innerHeight) * .26, behavior: reduced ? "auto" : "smooth" });
+  }));
+
+  // Fade sections in as they scroll into view.
+  const io = new IntersectionObserver((entries) => entries.forEach((e) => {
+    if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+  }), { threshold: 0.12 });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+  // Copy buttons copy the command without the trailing comment.
+  document.querySelectorAll(".copy").forEach((btn) => btn.addEventListener("click", async () => {
+    const pre = btn.previousElementSibling.cloneNode(true);
+    pre.querySelectorAll(".c").forEach((c) => c.remove());
+    try {
+      await navigator.clipboard.writeText(pre.textContent.trim());
+      btn.textContent = "copied"; btn.classList.add("ok");
+    } catch { btn.textContent = "failed"; }
+    setTimeout(() => { btn.textContent = "copy"; btn.classList.remove("ok"); }, 1400);
+  }));
+})();
+</script>
+</body>
+</html>

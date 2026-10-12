@@ -86,7 +86,7 @@ def render_sources(sources: dict) -> str:
             f"## API diff (installed both versions)\n{sources['api_diff']}")
 
 
-@neatlogs.span(kind="AGENT", name="playbook")
+@neatlogs.span(kind="AGENT", name="playbook", capture_input=False)  # its llm argument holds the API key
 def build(llm, sources: dict) -> dict:
     messages = [{"role": "user", "content": [{"text": render_sources(sources)}]}]
     fetch = Fetcher(already_read=[sources["links"][name] for name in sources["docs"] if name in sources["links"]])

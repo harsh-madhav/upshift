@@ -10,9 +10,24 @@ Levelup
 
 ## Stack
 - Agent: custom Python loop; bring-your-own-key model layer (OpenAI-compatible, Anthropic and Bedrock)
-- neatlogs: tracing every job, phase, tool and model call; later also detection of API drift
+- neatlogs: tracing every job, phase, tool and model call, and the source of API drift signals (via its MCP server)
 - Entire: checkpoints for this repo; entire-graph as the agent's search/impact/explain/verify tools
-- cfo.ai: business plan (pricing, costs, revenue, runway), not started
+- cfo.ai: business plan (pricing, costs, revenue, runway), built from the measured per-job costs in
+  `business/cfo-inputs.md`: https://cfo.ai/s/vY7Ur0OCp02UyJmF (summary in `business/plan.md`, full model in
+  `business/upshift-business-plan.xlsx`)
+
+## Evidence
+
+Every claim below is backed by a run in the build log that follows.
+
+| Claim | Evidence |
+|---|---|
+| Works on a real project, not just the demo | [flask-dantic](https://github.com/vivekkeshore/flask-dantic), Pydantic 1 → 2: 25 of 44 tests passing, every test that can pass on v2 (the other 19 use removed v1 APIs inside the tests themselves). The run exposed 9 problems in Upshift, all fixed, including the model making tests pass by patching Pydantic, now blocked by a syntax-tree check on every edit ([details](#2026-10-12-first-real-repository-flask-dantic)) |
+| The agent got better from its own traces | v0 → v1 from neatlogs trace analysis: −17% cost, −26% tokens, 0 deprecated calls left (`96ce4f0c…` → `d5b7c0ef…`). API drift: 433K → 162K tokens after the trace showed cleanup fighting the tests (`3b2e34a9…` → `f7443ab5…`) |
+| neatlogs | every job, phase, tool and model call traced. Upshift also searches neatlogs over MCP to find deprecated API calls in the app's production traces (`upshift watch --neatlogs`) |
+| Entire | every commit carries an `Entire-Checkpoint` trailer; entire-graph is the agent's search, impact, explain and verify tools |
+| cfo.ai | [business plan](https://cfo.ai/s/vY7Ur0OCp02UyJmF), built from the per-job costs measured in neatlogs: 96% gross margin, break-even in month 2, $144 peak founder funding ([summary](business/plan.md)) |
+| Recovers from failures | Python 3.10 → 3.12 across 4 traces: a misconfigured model, a proxy timeout and a dropped stream, then `upshift resume` finished without redoing setup, baseline or bump |
 
 ## Build log
 
@@ -207,6 +222,33 @@ The migration (only `shop/payments.py`): `/v2/payments`, `amount_cents` from the
 Next:
 - Repeat v0/v1 on more repos (real OSS projects) to separate the improvement from run-to-run variance.
 - Dependabot alerts as a second vulnerability source. API drift needs a per-provider sandbox switch (`--after-env`).
+
+### 2026-10-12: first real repository (flask-dantic)
+Target: [vivekkeshore/flask-dantic](https://github.com/vivekkeshore/flask-dantic), a small Flask library pinned to
+Pydantic 1.10.9 that builds models from Pydantic internals v2 removed (`ModelField`, `pydantic.json.ENCODERS_BY_TYPE`),
+the same migration FastAPI went through. `upshift bump --package pydantic --to 2`, Claude Sonnet 4.6.
+
+What the real repo exposed, in order:
+
+| # | Problem | Fix |
+|---|---|---|
+| 1 | `setup.py` imports its own package, so an isolated editable build fails | when the requirement files are installed, run the project from source (a `.pth`), like `setup.py develop` |
+| 2 | Upstream's tests don't run at all (Flask 1.1 isn't pinned against Jinja2 3), and Upshift took "0 passing" as a baseline: "0 new failures" then proves nothing | stop when nothing passes before any change. To continue, a local clone got the three missing 2021-era pins |
+| 3 | The neatlogs trace (`6b75ee36…`) showed the `playbook` span's input held the model client, **including the API key**. Every run that researched had uploaded it | the span no longer captures inputs; `tests/test_tracing.py` fails if a traced function taking `llm` captures its arguments |
+| 4 | Same trace: 1,039,800 input tokens, 63 model calls, one line changed. The model re-read the same three files ~8 times: the v1 history trimming shortened file reads after two steps, so it had to read them again (on the demo app the files were too small to be trimmed) | the newest read of each file stays whole. Next run: 145 lines migrated, 20 of the 25 reachable tests passing |
+| 5 | pytest stops at the first test file that can't import, so Upshift saw "0 passing" while 20 passed: the agent was blind to its own progress | `--continue-on-collection-errors` |
+| 6 | With test edits refused, the model added `-p flask_dantic.pytest_compat` to `pytest.ini`: a plugin to put v1 names back into Pydantic so the old tests import | test configuration (`pytest.ini`, `tox.ini`, `setup.cfg`, pytest sections of `pyproject.toml`) counts as tests, and edits that patch the upgraded package itself (`pydantic.x = …`, `setattr(pydantic, …)`) are refused |
+| 7 | The hackathon proxy budget ran out mid-round (422 `budget_exceeded`, trace `5e9465ce…`). The round's edits were reverted and a second round failed the same way | auth, unknown-model and budget errors stop the run and keep the edits for `upshift resume` |
+| 8 | Re-run on gpt-5.4 (`20261012-153836`): "36 of 44 passing", but the diff showed how. It put `ModelField` back into `pydantic.fields` through an import alias (`_pydantic_fields.ModelField = …`, which the text check in #6 missed), and replaced Python's `builtins.__build_class__` so every `BaseModel` subclass with a `__root__` field, the tests' included, silently became a `pydantic.v1` model. The tests passed; nothing was migrated | `edit_file` parses the file before and after the edit and refuses any new assignment into the upgraded package (under any import name), `builtins`, `sys.modules` or `__build_class__`. Checked against the run's own files: both patches caught, the three genuinely migrated files untouched. The prompt now says a test that needs a removed API is reported, not worked around |
+| 9 | Guarded re-run (`20261012-154951`): no patches, library migrated to `TypeAdapter`, and the model correctly said the two test files need a person. But Upshift recorded 0 passing: fix #5 had reached only the `entire graph verify` command, not `run_tests`, so the agent still couldn't see its 20 passing tests | `run_tests` uses `--continue-on-collection-errors` too, with a test |
+
+**Result** (`20261012-155213`, gpt-5.4, 976K input tokens): **25 passing, the most possible**; the only failures are the 2 test files that use removed v1 APIs themselves, named in the report as needing a person. 3 library files changed, no patches (checked with the same syntax-tree scan). The library's public contract is kept: v2 validation errors are translated back to v1's format (`'field required'`, `value_error.missing`) and request parameters keep v1's int → str coercion.
+Next: rounds 3–4 only re-confirmed that nothing package-side was left. Stop as soon as every remaining failure is a test file that can't import.
+
+What can't be fixed without a person: 19 of the 44 tests contain v1 code themselves (`test_serializer.py` imports
+`pydantic.fields.ModelField`; `test_json_encoder.py` declares a `__root__` model, which v2 rejects at class
+definition). Upshift doesn't edit tests, so the most it can reach is the 25 tests in `test_validator.py`, which also
+pin v1's error format (`'field required'`, `value_error.missing`): the library's public contract.
 
 ## Demo
 Not recorded yet.

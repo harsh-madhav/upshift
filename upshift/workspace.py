@@ -71,7 +71,8 @@ class Workspace:
 
     @property
     def test_cmd(self) -> str:
-        return f"{self.py} -B -m pytest -rA -p no:cacheprovider"  # -rA so entire graph verify can parse per-test results
+        # -rA so entire graph verify can parse per-test results; one file that fails to import must not hide the rest
+        return f"{self.py} -B -m pytest -rA -p no:cacheprovider --continue-on-collection-errors"
 
     # --- setup -------------------------------------------------------------
 
@@ -116,7 +117,13 @@ class Workspace:
                     log.append(f"installed -e {target}")
                     break
             else:
-                raise RuntimeError(f"installing the project failed:\n{tail(out.stderr, 3000)}")
+                # legacy setup.py files often import the package (for its version) and can't be built in
+                # isolation; with requirement files already installed, run from source like `setup.py develop`
+                if not self.requirement_files():
+                    raise RuntimeError(f"installing the project failed:\n{tail(out.stderr, 3000)}")
+                site = sh([self.py, "-c", "import sysconfig; print(sysconfig.get_paths()['purelib'])"])
+                Path(site.stdout.strip(), "_upshift_project.pth").write_text(f"{self.repo.resolve()}\n")
+                log.append(f"project not buildable, running from source:\n{tail(out.stderr, 500)}")
         sh([*pip, "pytest"])
         return "\n".join(log)
 
@@ -174,7 +181,9 @@ class Workspace:
     @neatlogs.span(kind="TOOL", tool_name="run_tests")
     def run_tests(self, selector: str = "") -> TestRun:
         # -B: no .pyc files, so a same-size edit within the same second is never masked by stale bytecode
-        cmd = [self.py, "-B", "-m", "pytest", "-q", "-rfE", "-p", "no:cacheprovider", "--no-header"]
+        # --continue-on-collection-errors: one test file that fails to import must not hide every other result
+        cmd = [self.py, "-B", "-m", "pytest", "-q", "-rfE", "-p", "no:cacheprovider", "--no-header",
+               "--continue-on-collection-errors"]
         if selector:
             cmd += selector.split()
         try:
@@ -198,7 +207,8 @@ class Workspace:
 
 
 def is_test_file(rel: Path) -> bool:
-    return "tests" in rel.parts or "test" in rel.parts or rel.name.startswith("test_") or rel.name == "conftest.py"
+    return ("tests" in rel.parts or "test" in rel.parts or rel.name.startswith("test_")
+            or rel.name in ("conftest.py", "pytest.ini", "tox.ini", "setup.cfg"))
 
 
 # --- requirement parsing helpers ---------------------------------------------
