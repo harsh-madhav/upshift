@@ -17,7 +17,7 @@ Built for #neatHack with neatlogs, Entire and cfo.ai. Bring your own model key.
 | `upshift bump` | Upgrade one package and fix the code it breaks | pydantic 1 → 2: 16/16 tests passing |
 | `upshift scan` | Find packages with known vulnerabilities and fix each one | jinja2: 4 CVEs fixed, 21 tests passing |
 | `upshift python` | Move the project to a newer Python and fix what breaks | Python 3.10 → 3.12: 26 tests passing |
-| `upshift watch` | Find third-party API calls that are being retired and migrate them | acme v1 → v2: 30/30 tests passing after the sunset |
+| `upshift watch` | Find third-party API calls that are being retired and migrate them | acme v1 → v2: 30/30 tests passing in sunset mode |
 
 Your repo is never edited in place: every run works on its own copy under `.upshift/runs/`.
 
@@ -117,7 +117,7 @@ Start with `--dry-run` to see what breaks before spending any tokens.
 | `bump` | `--repo`, `--package` | `--to VERSION` (default: latest stable), `--python`, `--fresh-research`, `--dry-run` |
 | `scan` | `--repo` | `--python`, `--dry-run` |
 | `python` | `--repo`, `--to` | `--from` (default: the repo's `.python-version`), `--fresh-research`, `--dry-run` |
-| `watch` | `--repo` | `--neatlogs`, `--logs FILE`, `--since MINUTES`, `--after-env KEY=VALUE`, `--fresh-research`, `--dry-run` |
+| `watch` | `--repo` | `--neatlogs`, `--logs FILE`, `--since MINUTES`, `--after-env KEY=VALUE`, `--python`, `--fresh-research`, `--dry-run` |
 | `resume` | a run id | `--dry-run` |
 
 - `--python` picks the Python for the project's venv. The default is the repo's `.python-version`, else 3.12.

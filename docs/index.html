@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script>document.documentElement.classList.replace("no-js", "js");</script>
 <style>
   :root {
     --bg: #0B0C0E;
@@ -88,9 +89,16 @@
   .scrim { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(11, 12, 14, .85), rgba(11, 12, 14, .5) 40%, transparent 65%); }
   .scene {
     position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-start;
-    padding: max(104px, 15vh) var(--gutter) 72px; opacity: 0; pointer-events: none; will-change: opacity, transform;
+    padding: max(104px, 15vh) var(--gutter) 72px; pointer-events: none; will-change: opacity, transform;
   }
+  .js .scene { opacity: 0; }
   .scene.live { pointer-events: auto; }
+  /* without JavaScript: no pinned story, every scene shown in its final state */
+  .no-js .story { height: auto; }
+  .no-js .stage { position: relative; height: auto; overflow: visible; }
+  .no-js .scene { position: relative; inset: auto; pointer-events: auto; padding-bottom: 24px; }
+  .no-js #ridges, .no-js .scrim, .no-js .rail, .no-js .progress, .no-js .round { display: none; }
+  .no-js .pr { position: static; margin-top: 28px; }
 
   .display { margin: 0 0 24px; font-size: clamp(38px, 8.2vw, 118px); line-height: .94; letter-spacing: -.02em; text-transform: uppercase; font-stretch: 112%; }
   .display span { display: block; }
@@ -234,6 +242,10 @@
   .code { position: relative; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; min-width: 0; }
   .code pre { margin: 0; padding: 10px 76px 10px 14px; font: 13.5px/20px var(--mono); overflow-x: auto; }
   .code pre .c { color: var(--muted); }
+  .note.before { margin: -12px 0 24px; }
+  .note a, .demo-res a { color: var(--text); }
+  .expect { margin: 4px 0 4px 40px; font-size: 14px; color: var(--muted); }
+  .expect code { color: var(--green); }
   .copy {
     position: absolute; top: 6px; right: 6px; font: 600 12px var(--mono); padding: 5px 9px; border-radius: 6px;
     background: var(--bg); color: var(--muted); border: 1px solid var(--rule); cursor: pointer;
@@ -245,8 +257,8 @@
 
   footer { margin: 120px var(--gutter) 0; padding: 28px 0 40px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 
-  .reveal { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }
-  .reveal.in { opacity: 1; transform: none; }
+  .js .reveal { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }
+  .js .reveal.in { opacity: 1; transform: none; }
 
   @media (max-width: 860px) {
     .rail { display: none; }
@@ -276,13 +288,14 @@
     .diff-head span:last-child { display: none; }
     .step { grid-template-columns: 1fr; gap: 4px; }
     .step > span { line-height: 1; }
+    .expect { margin-left: 0; }
     .code pre { white-space: pre-wrap; word-break: break-word; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .rise > *, .fade-in, .round, .cursor { animation: none; }
     .ticker .track { animation: none; }
-    .reveal { opacity: 1; transform: none; transition: none; }
+    .js .reveal { opacity: 1; transform: none; transition: none; }
     .btn, .meter, .pair .del, .pair .add, .rail li, .tabs a, .demo-tabs button, .pr { transition: none; }
   }
 </style>
@@ -316,9 +329,9 @@
         <a class="btn primary" href="https://github.com/harsh-madhav/upshift">View on GitHub ↗</a>
         <a class="round" href="#story" data-jump aria-label="See how it works">↓</a>
       </div>
-      <div class="pr fail fade-in" id="pr" aria-label="Example: a Dependabot pull request that fails CI, then passes after Upshift fixes it">
+      <div class="pr pass fade-in" id="pr" aria-label="Example: a Dependabot pull request that fails CI, then passes after Upshift fixes it">
         <div class="pr-head"><span class="pr-ico">↑↓</span><div><b>Bump pydantic from 1.10.13 to 2.14.0</b><small>dependabot wants to merge</small></div></div>
-        <div class="pr-check"><span class="pr-dot" id="prDot">✗</span><span class="pr-msg" id="prMsg">CI failing · tests fail at import</span><span class="pr-count" id="prCount">0/16</span></div>
+        <div class="pr-check"><span class="pr-dot" id="prDot">✓</span><span class="pr-msg" id="prMsg">fixed by upshift · was 0/16</span><span class="pr-count" id="prCount">16/16</span></div>
         <div class="pr-bar"><i></i></div>
       </div>
     </div>
@@ -326,26 +339,33 @@
     <div class="scene" data-in=".17" data-out=".39">
       <p class="kicker"><b>01</b> &nbsp;bump</p>
       <p class="pkg">pydantic</p>
-      <div class="odo" id="odo" aria-label="1.10.13 to 2.14.0"></div>
-      <div class="meter ok" id="meter">16/16 tests passing</div>
-      <p class="cap" id="bumpCap">Baseline recorded before anything changes.</p>
+      <div class="odo" id="odo" aria-label="1.10.13 to 2.14.0">2.14.0</div>
+      <div class="meter bad" id="meter">0/16 tests passing</div>
+      <p class="cap" id="bumpCap">Bumped. The test suite now fails at import.</p>
     </div>
 
     <div class="scene" data-in=".41" data-out=".65">
       <p class="kicker"><b>02</b> &nbsp;research → fix</p>
       <p class="h2">It reads the changelog, writes a <em>cited playbook</em>, then fixes the code.</p>
       <div class="diff">
-        <div class="diff-head"><b>shop/models.py · shop/orders.py</b><span>rules applied <b id="applied">0</b>/6</span></div>
-        <div class="diff-body" id="diff"></div>
+        <div class="diff-head"><b>shop/models.py · shop/orders.py</b><span>rules applied <b id="applied">6</b>/6</span></div>
+        <div class="diff-body" id="diff">
+          <div class="pair on"><div class="del">- from pydantic import …, root_validator, validator</div><div class="add"><div>+ from pydantic import …, field_validator, model_validator</div></div></div>
+          <div class="pair on"><div class="del">- Sku = constr(regex=r"^[A-Z]{3}-\d{4}$")</div><div class="add"><div>+ Sku = constr(pattern=r"^[A-Z]{3}-\d{4}$")</div></div></div>
+          <div class="pair on"><div class="del">- @validator("email")</div><div class="add"><div>+ @field_validator("email")</div></div></div>
+          <div class="pair on"><div class="del">-     orm_mode = True</div><div class="add"><div>+ model_config = ConfigDict(from_attributes=True)</div></div></div>
+          <div class="pair on"><div class="del">- @root_validator</div><div class="add"><div>+ @model_validator(mode="after")</div></div></div>
+          <div class="pair on"><div class="del">- data = order.dict(include={"id", "coupon"})</div><div class="add"><div>+ data = order.model_dump(include={"id", "coupon"})</div></div></div>
+        </div>
       </div>
       <p class="cite">source for every rule ↳ <b>docs.pydantic.dev/latest/migration</b> + API diff of both versions</p>
     </div>
 
     <div class="scene" data-in=".67" data-out=".84">
       <p class="kicker"><b>03</b> &nbsp;verify → report</p>
-      <div class="big"><b id="vcount">0</b><span>/16</span></div>
+      <div class="big"><b id="vcount">16</b><span>/16</span></div>
       <p class="cap">tests passing · 0 new failures against the pre-upgrade baseline.</p>
-      <div class="chips"><span>3 files changed</span><span>1 fix round</span><span>UPSHIFT_REPORT.md written</span></div>
+      <div class="chips"><span>3 files changed: the pin, models, orders</span><span>1 fix round</span><span>UPSHIFT_REPORT.md written</span><span>your repo untouched: runs work on a copy</span></div>
     </div>
 
     <div class="scene" data-in=".86" data-out="1.1">
@@ -395,32 +415,41 @@
         <button role="tab" class="on"><b>bump</b><span>Upgrade a package and fix the code it breaks.</span></button>
         <button role="tab"><b>scan</b><span>Find vulnerable deps (pip-audit / OSV) and fix each one.</span></button>
         <button role="tab"><b>python</b><span>Move the Python version everywhere it's pinned, then fix.</span></button>
-        <button role="tab"><b>watch</b><span>Spot third-party APIs being retired (Deprecation / Sunset headers in neatlogs traces) and migrate before the shutdown.</span></button>
+        <button role="tab"><b>watch</b><span>Spot third-party APIs being retired (Deprecation / Sunset headers or 410 Gone, in neatlogs traces or your app's call log) and migrate before the shutdown.</span></button>
       </div>
       <div class="demo-main">
-        <p class="demo-what" id="demoWhat"></p>
+        <p class="demo-what" id="demoWhat">Upgrade a package and fix the code it breaks.</p>
         <div class="term">
           <div class="term-bar"><span></span><span></span><span></span><b>~/upshift</b><button class="copy" id="termCopy">copy</button></div>
-          <pre id="term" aria-live="off"></pre>
+          <pre id="term" aria-live="off"><div class="t-cmd">uv run upshift bump --repo demo/shop_app --package pydantic --to 2</div><div class="t-dim">[upshift] run 20261010-145618-pydantic → …</div><div class="t-done">[upshift] setup done</div><div class="t-done">[upshift] baseline done</div><div class="t-done">[upshift] research done</div><div class="t-done">[upshift] bump done</div><div class="t-done">[upshift] fix done</div><div class="t-done">[upshift] verify done</div><div class="t-done">[upshift] report done</div><div class="t-ok">[upshift] OK: 16 passing, 0 new failures. Report: …/UPSHIFT_REPORT.md</div></pre>
         </div>
-        <p class="demo-res" id="demoRes"></p>
+        <p class="demo-res" id="demoRes">pydantic 1 → 2: <strong>16/16 passing</strong>. 3 files changed: the pin, plus the models and orders code.</p>
       </div>
     </div>
   </section>
 
   <section class="block reveal" id="quickstart">
     <p class="kicker"><b>↑</b> &nbsp;quickstart</p>
-    <p class="lede">Try it on the bundled demo app in about a minute.</p>
+    <p class="lede">Try it on the bundled demo app in a few minutes.</p>
+    <p class="note before"><b>Before you start:</b> Python 3.11+, git and <a href="https://docs.astral.sh/uv/">uv</a>. Install uv with <code>curl -LsSf https://astral.sh/uv/install.sh | sh</code> or <code>brew install uv</code>.<br>
+      Optional: the <a href="https://docs.entire.io/overview">Entire CLI</a> (<code>entire plugin install graph</code>) gives the agent code-graph tools. Upshift still works without it.</p>
     <div class="steps">
       <div class="step"><span>1</span><div class="code"><pre>git clone https://github.com/harsh-madhav/upshift.git &amp;&amp; cd upshift</pre><button class="copy">copy</button></div></div>
       <div class="step"><span>2</span><div class="code"><pre>uv sync</pre><button class="copy">copy</button></div></div>
       <div class="step"><span>3</span><div class="code"><pre>uv run upshift bump --repo demo/shop_app --package pydantic --to 2 --dry-run  <span class="c"># no key needed: shows what breaks</span></pre><button class="copy">copy</button></div></div>
-      <div class="step"><span>4</span><div class="code"><pre>cp .env.example .env  <span class="c"># set UPSHIFT_PROVIDER and your key</span></pre><button class="copy">copy</button></div></div>
+      <div class="step"><span>4</span><div class="code"><pre>cp .env.example .env  <span class="c"># then in .env set, for example:</span>
+<span class="x">UPSHIFT_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...</span></pre><button class="copy">copy</button></div></div>
       <div class="step"><span>5</span><div class="code"><pre>uv run upshift bump --repo demo/shop_app --package pydantic --to 2</pre><button class="copy">copy</button></div></div>
+      <p class="expect">Ends with <code>[upshift] OK: 16 passing, 0 new failures. Report: …/UPSHIFT_REPORT.md</code>. The fixed code is in <code>.upshift/runs/&lt;run-id&gt;/repo/</code>: your repo is never edited in place.</p>
+      <div class="step"><span>6</span><div class="code"><pre>uv run upshift scan --repo demo/shop_app  <span class="c"># fix known vulnerabilities</span></pre><button class="copy">copy</button></div></div>
+      <div class="step"><span>7</span><div class="code"><pre>uv run upshift python --repo demo/shop_app --to 3.12  <span class="c"># move to Python 3.12</span></pre><button class="copy">copy</button></div></div>
     </div>
-    <p class="note">Needs Python 3.11+, <code>uv</code>, and optionally the Entire CLI (<code>entire plugin install graph</code>) for code-graph tools.<br>
-      Providers: <code>anthropic</code> · <code>openai</code> · <code>azure-openai</code> · <code>litellm</code> · <code>bedrock</code>. Bring your own key.<br>
-      Crashed run? <code>uv run upshift resume &lt;run-id&gt;</code></p>
+    <p class="note">On your own project: <code>--repo</code> takes a local path or a git URL, and the project needs a pytest suite.<br>
+      <code>watch</code> needs the fake acme API running first: see <a href="https://github.com/harsh-madhav/upshift#the-api-drift-demo">the API drift demo</a>.<br>
+      Providers: <code>anthropic</code> · <code>openai</code> · <code>azure-openai</code> · <code>litellm</code> · <code>bedrock</code>. Bring your own credentials: an API key, plus the endpoint for Azure; Bedrock uses an AWS profile (<code>UPSHIFT_AWS_PROFILE</code>).<br>
+      Crashed run? <code>uv run upshift resume &lt;run-id&gt;</code>. The run id is printed at the start, and is the folder name under <code>.upshift/runs/</code>.<br>
+      Providers, every option and troubleshooting: <a href="https://github.com/harsh-madhav/upshift#readme">the README</a>.</p>
   </section>
 </main>
 
@@ -436,29 +465,13 @@
   const ease = (t) => t * t * (3 - 2 * t);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  // Real lines from the pydantic 1 -> 2 run on demo/shop_app.
-  const PAIRS = [
-    ["from pydantic import …, root_validator, validator", "from pydantic import …, field_validator, model_validator"],
-    ['Sku = constr(regex=r"^[A-Z]{3}-\\d{4}$")', 'Sku = constr(pattern=r"^[A-Z]{3}-\\d{4}$")'],
-    ['@validator("email")', '@field_validator("email")'],
-    ["    orm_mode = True", "model_config = ConfigDict(from_attributes=True)"],
-    ["@root_validator", '@model_validator(mode="after")'],
-    ['data = order.dict(include={"id", "coupon"})', 'data = order.model_dump(include={"id", "coupon"})'],
-  ];
-  const diff = document.getElementById("diff");
-  const pairs = PAIRS.map(([del, add]) => {
-    const el = document.createElement("div");
-    el.className = "pair";
-    el.innerHTML = '<div class="del"></div><div class="add"><div></div></div>';
-    el.querySelector(".del").textContent = "- " + del;
-    el.querySelector(".add > div").textContent = "+ " + add;
-    diff.appendChild(el);
-    return el;
-  });
+  // Real lines from the pydantic 1 -> 2 run on demo/shop_app, in the markup.
+  const pairs = [...document.querySelectorAll("#diff .pair")];
 
   // Odometer: each slot rolls from the old character to the new one.
   const OLD = "1.10.13", NEW = "2.14.0";
   const odo = document.getElementById("odo");
+  odo.textContent = "";
   const rolls = [...OLD].map((ch, i) => {
     const slot = document.createElement("span");
     slot.className = "slot";
@@ -506,7 +519,7 @@
       : broken ? "Bumped. The test suite now fails at import." : "Rewriting the pin, installing the new version…";
 
     // fix: apply playbook rules one by one
-    const n = Math.floor(span(p, .43, .61) * PAIRS.length + .001);
+    const n = Math.floor(span(p, .43, .61) * pairs.length + .001);
     pairs.forEach((el, i) => el.classList.toggle("on", i < n));
     applied.textContent = n;
 
@@ -603,10 +616,8 @@
     pr.classList.add(state);
     [prDot.textContent, prMsg.textContent, prCount.textContent] = PR[state];
   };
-  if (reduced) {
-    setPR("pass");
-    prMsg.textContent = "fixed by upshift · was 0/16";
-  } else {
+  // The markup holds the final "pass" state, which reduced motion keeps.
+  if (!reduced) {
     const cycle = async () => {
       for (;;) {
         setPR("fail"); await sleep(2600);
@@ -614,7 +625,7 @@
         setPR("pass"); await sleep(3200);
       }
     };
-    setTimeout(cycle, 1200);
+    cycle();
   }
 
   // Command demo: each tab replays that command's real run on demo/shop_app.
@@ -629,7 +640,7 @@
         ...PHASES("setup baseline research bump fix verify report"),
         ["t-ok", "[upshift] OK: 16 passing, 0 new failures. Report: …/UPSHIFT_REPORT.md"],
       ],
-      res: "pydantic 1 → 2: <strong>16/16 passing</strong>, only models and orders changed.",
+      res: "pydantic 1 → 2: <strong>16/16 passing</strong>. 3 files changed: the pin, plus the models and orders code.",
     },
     {
       what: "Find vulnerable deps (pip-audit / OSV) and fix each one.",
@@ -657,7 +668,7 @@
       res: "3.10 → 3.12: <strong>26 passing</strong>, 0 new failures.",
     },
     {
-      what: "Spot third-party APIs being retired (Deprecation / Sunset headers in neatlogs traces) and migrate before the shutdown.",
+      what: "Spot third-party APIs being retired (Deprecation / Sunset headers or 410 Gone, in neatlogs traces or your app's call log) and migrate before the shutdown.",
       cmd: "uv run upshift watch --repo demo/shop_app --neatlogs --logs logs/app.log --after-env ACME_SANDBOX_MODE=sunset",
       lines: [
         ["t-vuln", "[upshift] acme v1 is deprecated: 22 calls (0 already 410), sunset Sat, 31 Oct 2026 23:59:59 GMT, successor http://127.0.0.1:8765/v2/openapi.json; seen in log, neatlogs"],
@@ -667,7 +678,7 @@
         ...PHASES(PIPELINE_ORDER),
         ["t-ok", "[upshift] OK: 30 passing, 0 new failures. Report: …/UPSHIFT_REPORT.md"],
       ],
-      res: "acme v1 → v2: 22 deprecated calls found, <strong>30/30 passing</strong> after the sunset.",
+      res: 'acme v1 → v2: 22 deprecated calls found, <strong>30/30 passing</strong> in sunset mode (the sandbox simulating the shutdown, via <code>--after-env</code>). To try it, start the acme sandbox first: see <a href="https://github.com/harsh-madhav/upshift#the-api-drift-demo">the API drift demo</a>.',
     },
   ];
   const term = document.getElementById("term");
@@ -745,7 +756,7 @@
   };
   document.querySelectorAll(".code .copy").forEach((btn) => btn.addEventListener("click", () => {
     const pre = btn.previousElementSibling.cloneNode(true);
-    pre.querySelectorAll(".c").forEach((c) => c.remove());
+    pre.querySelectorAll(".c, .x").forEach((c) => c.remove());
     copy(btn, pre.textContent.trim());
   }));
   document.getElementById("termCopy").addEventListener("click", (e) => copy(e.currentTarget, DEMO[current].cmd));
