@@ -78,16 +78,17 @@
   @keyframes nudge { 50% { transform: translateY(6px); } }
 
   /* the scroll story: a tall section whose stage stays pinned while scenes scrub */
-  .story { position: relative; height: 560vh; }
+  .story { position: relative; height: 360vh; }
   .stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
   #ridges { position: absolute; inset: 0; width: 100%; height: 100%; }
   .grain {
     position: absolute; inset: 0; pointer-events: none; opacity: .08; mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
+  .scrim { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(11, 12, 14, .85), rgba(11, 12, 14, .5) 40%, transparent 65%); }
   .scene {
-    position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center;
-    padding: 88px var(--gutter) 72px; opacity: 0; pointer-events: none; will-change: opacity, transform;
+    position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-start;
+    padding: max(104px, 15vh) var(--gutter) 72px; opacity: 0; pointer-events: none; will-change: opacity, transform;
   }
   .scene.live { pointer-events: auto; }
 
@@ -104,6 +105,33 @@
   @keyframes up { from { transform: translateY(105%); } }
   .fade-in { animation: fade 1.2s .5s both; }
   @keyframes fade { from { opacity: 0; } }
+
+  /* hero: a Dependabot PR that fails, then passes after Upshift */
+  .pr {
+    position: absolute; right: var(--gutter); bottom: 96px; width: 340px; padding: 16px; border-radius: 14px;
+    background: rgba(20, 22, 26, .92); border: 1px solid var(--rule); transition: border-color .4s;
+  }
+  .pr-head { display: flex; gap: 10px; align-items: flex-start; }
+  .pr-ico { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 600 11px var(--mono); background: rgba(43, 212, 132, .15); color: var(--green); margin-top: 1px; }
+  .pr-head b { display: block; font-size: 15px; line-height: 1.3; }
+  .pr-head small { color: var(--muted); font: 12px var(--mono); }
+  .pr-check { display: flex; align-items: center; gap: 10px; margin: 14px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--rule); font: 12.5px var(--mono); }
+  .pr-dot { flex: none; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; color: var(--bg); font-weight: 700; }
+  .pr-msg { flex: 1; color: var(--muted); }
+  .pr-count { font-weight: 600; }
+  .pr-bar { height: 2px; margin: 12px 2px 0; background: var(--rule); border-radius: 2px; overflow: hidden; }
+  .pr-bar i { display: block; height: 100%; width: 40%; background: var(--yellow); transform: translateX(-100%); }
+  .pr.fail { border-color: color-mix(in srgb, var(--red) 45%, var(--rule)); }
+  .pr.fail .pr-dot { background: var(--red); }
+  .pr.fail .pr-count { color: var(--red); }
+  .pr.fixing { border-color: color-mix(in srgb, var(--yellow) 45%, var(--rule)); }
+  .pr.fixing .pr-dot { background: var(--yellow); animation: pulse 1s ease-in-out infinite; }
+  .pr.fixing .pr-bar i { animation: sweep 1.1s ease-in-out infinite; }
+  .pr.pass { border-color: color-mix(in srgb, var(--green) 45%, var(--rule)); }
+  .pr.pass .pr-dot { background: var(--green); }
+  .pr.pass .pr-count { color: var(--green); }
+  @keyframes pulse { 50% { opacity: .4; } }
+  @keyframes sweep { to { transform: translateX(260%); } }
 
   /* bump scene */
   .pkg { font: 600 clamp(16px, 2vw, 22px) var(--mono); color: var(--muted); margin: 0 0 6px; }
@@ -170,14 +198,35 @@
   section.block { padding: 96px 0 0; }
   .lede { font-size: clamp(26px, 4vw, 44px); font-weight: 800; letter-spacing: -.02em; line-height: 1.05; font-stretch: 108%; margin: 0 0 32px; max-width: 760px; }
 
-  .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .card { border: 1px solid var(--rule); border-radius: 14px; padding: 22px; background: var(--surface); transition: border-color .2s, transform .2s; }
-  .card:hover { border-color: #3A3E46; transform: translateY(-2px); }
-  .card h3 { margin: 0 0 6px; font: 600 18px var(--mono); color: var(--yellow); }
-  .card .what { margin: 0 0 16px; font-size: 15px; }
-  .card code.run { display: block; padding: 10px 12px; border-radius: 8px; background: var(--bg); border: 1px solid var(--rule); font-size: 12.5px; color: var(--muted); word-break: break-word; }
-  .card .res { margin: 14px 0 0; font-size: 13.5px; color: var(--muted); }
-  .card .res strong { color: var(--green); font-weight: 600; }
+  /* command demo: pick a command, the terminal replays its real run */
+  .demo { display: grid; grid-template-columns: 300px 1fr; gap: 16px; align-items: start; }
+  .demo-tabs { display: grid; gap: 8px; }
+  .demo-tabs button {
+    text-align: left; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--rule); background: var(--surface);
+    color: var(--muted); font: 14px/1.45 var(--display); cursor: pointer; transition: border-color .2s, color .2s;
+  }
+  .demo-tabs button b { display: block; font: 600 16px var(--mono); color: var(--text); margin: 0 0 4px; }
+  .demo-tabs button:hover { border-color: #3A3E46; }
+  .demo-tabs button.on { border-color: var(--yellow); color: var(--text); }
+  .demo-tabs button.on b { color: var(--yellow); }
+  .demo-main { min-width: 0; }
+  .demo-what { display: none; margin: 0 0 12px; color: var(--muted); font-size: 15px; }
+  .term { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; }
+  .term-bar { display: flex; align-items: center; gap: 7px; padding: 10px 12px 10px 14px; border-bottom: 1px solid var(--rule); }
+  .term-bar span { width: 11px; height: 11px; border-radius: 50%; background: var(--rule); }
+  .term-bar b { margin-left: auto; font: 400 12px var(--mono); color: var(--muted); }
+  .term-bar .copy { position: static; }
+  .term pre { margin: 0; padding: 16px 18px 20px; height: 580px; overflow-y: auto; font: 13px/1.7 var(--mono); white-space: pre-wrap; word-break: break-word; }
+  .t-cmd { color: var(--text); }
+  .t-cmd::before { content: "$ "; color: var(--yellow); }
+  .t-dim { color: var(--muted); }
+  .t-vuln { color: var(--red); }
+  .t-ok { color: var(--green); font-weight: 600; }
+  .t-done { color: var(--blue); }
+  .cursor { display: inline-block; width: .6em; height: 1.1em; vertical-align: text-bottom; background: var(--yellow); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .demo-res { margin: 14px 0 0; font-size: 15px; color: var(--muted); }
+  .demo-res strong { color: var(--green); font-weight: 600; }
 
   .steps { display: grid; gap: 10px; }
   .step { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start; }
@@ -201,7 +250,15 @@
 
   @media (max-width: 860px) {
     .rail { display: none; }
-    .cards { grid-template-columns: 1fr; }
+    .scrim { background: rgba(11, 12, 14, .45); }
+    .pr { position: static; width: auto; max-width: 400px; margin: 28px 0 0; }
+    .demo { grid-template-columns: 1fr; }
+    .demo-tabs { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .demo-tabs button { padding: 9px 4px; text-align: center; border-radius: 999px; }
+    .demo-tabs button b { margin: 0; font-size: 14px; }
+    .demo-tabs button span { display: none; }
+    .demo-what { display: block; }
+    .term pre { height: 400px; font-size: 12px; }
   }
   @media (max-width: 640px) {
     .nav { flex-wrap: wrap; row-gap: 12px; padding-top: 14px; }
@@ -211,6 +268,10 @@
   }
   @media (max-width: 480px) {
     .scene { padding: 116px 16px 64px; }
+    .display { margin-bottom: 16px; }
+    .sub { margin-bottom: 20px; }
+    .pr { margin-top: 20px; padding: 12px; }
+    .pr-head b { font-size: 14px; }
     .diff-body { font-size: 11.5px; }
     .diff-head span:last-child { display: none; }
     .step { grid-template-columns: 1fr; gap: 4px; }
@@ -219,10 +280,10 @@
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    .rise > *, .fade-in, .round { animation: none; }
+    .rise > *, .fade-in, .round, .cursor { animation: none; }
     .ticker .track { animation: none; }
     .reveal { opacity: 1; transform: none; transition: none; }
-    .btn, .card, .meter, .pair .del, .pair .add, .rail li, .tabs a { transition: none; }
+    .btn, .meter, .pair .del, .pair .add, .rail li, .tabs a, .demo-tabs button, .pr { transition: none; }
   }
 </style>
 </head>
@@ -242,6 +303,7 @@
   <div class="stage">
     <canvas id="ridges" aria-hidden="true"></canvas>
     <div class="grain" aria-hidden="true"></div>
+    <div class="scrim" aria-hidden="true"></div>
 
     <div class="scene" data-in="0" data-out=".15">
       <p class="kicker fade-in">pydantic · jinja2 · python · CVEs · API drift</p>
@@ -253,6 +315,11 @@
       <div class="ctas fade-in">
         <a class="btn primary" href="https://github.com/harsh-madhav/upshift">View on GitHub ↗</a>
         <a class="round" href="#story" data-jump aria-label="See how it works">↓</a>
+      </div>
+      <div class="pr fail fade-in" id="pr" aria-label="Example: a Dependabot pull request that fails CI, then passes after Upshift fixes it">
+        <div class="pr-head"><span class="pr-ico">↑↓</span><div><b>Bump pydantic from 1.10.13 to 2.14.0</b><small>dependabot wants to merge</small></div></div>
+        <div class="pr-check"><span class="pr-dot" id="prDot">✗</span><span class="pr-msg" id="prMsg">CI failing · tests fail at import</span><span class="pr-count" id="prCount">0/16</span></div>
+        <div class="pr-bar"><i></i></div>
       </div>
     </div>
 
@@ -323,30 +390,20 @@
   <section class="block reveal" id="commands">
     <p class="kicker"><b>↑</b> &nbsp;four commands</p>
     <p class="lede">Upgrade one package, fix every known vulnerability, move to a newer Python, or get off an API before it shuts down.</p>
-    <div class="cards">
-      <div class="card">
-        <h3>bump</h3>
-        <p class="what">Upgrade a package and fix the code it breaks.</p>
-        <code class="run">upshift bump --repo . --package pydantic --to 2</code>
-        <p class="res">pydantic 1 → 2: <strong>16/16 passing</strong>, only models and orders changed.</p>
+    <div class="demo">
+      <div class="demo-tabs" role="tablist" id="demoTabs">
+        <button role="tab" class="on"><b>bump</b><span>Upgrade a package and fix the code it breaks.</span></button>
+        <button role="tab"><b>scan</b><span>Find vulnerable deps (pip-audit / OSV) and fix each one.</span></button>
+        <button role="tab"><b>python</b><span>Move the Python version everywhere it's pinned, then fix.</span></button>
+        <button role="tab"><b>watch</b><span>Spot third-party APIs being retired (Deprecation / Sunset headers in neatlogs traces) and migrate before the shutdown.</span></button>
       </div>
-      <div class="card">
-        <h3>scan</h3>
-        <p class="what">Find vulnerable deps (pip-audit / OSV) and fix each one.</p>
-        <code class="run">upshift scan --repo .</code>
-        <p class="res">jinja2: <strong>4 CVEs fixed</strong>, 21 passing. requests: pin change only, no model calls.</p>
-      </div>
-      <div class="card">
-        <h3>python</h3>
-        <p class="what">Move the Python version everywhere it's pinned, then fix.</p>
-        <code class="run">upshift python --repo . --to 3.12</code>
-        <p class="res">3.10 → 3.12: <strong>26 passing</strong>, 0 new failures.</p>
-      </div>
-      <div class="card">
-        <h3>watch</h3>
-        <p class="what">Spot third-party APIs being retired (Deprecation / Sunset headers in neatlogs traces) and migrate before the shutdown.</p>
-        <code class="run">upshift watch --repo . --neatlogs</code>
-        <p class="res">acme v1 → v2: 22 deprecated calls found, <strong>30/30 passing</strong> after the sunset.</p>
+      <div class="demo-main">
+        <p class="demo-what" id="demoWhat"></p>
+        <div class="term">
+          <div class="term-bar"><span></span><span></span><span></span><b>~/upshift</b><button class="copy" id="termCopy">copy</button></div>
+          <pre id="term" aria-live="off"></pre>
+        </div>
+        <p class="demo-res" id="demoRes"></p>
       </div>
     </div>
   </section>
@@ -377,6 +434,7 @@
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
   const span = (p, a, b) => clamp((p - a) / (b - a));
   const ease = (t) => t * t * (3 - 2 * t);
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // Real lines from the pydantic 1 -> 2 run on demo/shop_app.
   const PAIRS = [
@@ -458,7 +516,7 @@
     let cur = -1;
     STAGES.forEach(([, at], i) => { if (p >= at) cur = i; });
     rail.forEach((li, i) => { li.classList.toggle("done", i < cur); li.classList.toggle("on", i === cur); });
-    railEl.style.opacity = 1 - span(p, .84, .87);
+    railEl.style.opacity = span(p, .12, .16) * (1 - span(p, .84, .87));
     stageName.textContent = cur < 0 ? "scroll" : p > .84 ? "done ✓" : STAGES[cur][0];
     bar.style.transform = `scaleX(${p})`;
 
@@ -530,6 +588,147 @@
     scrollTo({ top: story.offsetTop + (story.offsetHeight - innerHeight) * .26, behavior: reduced ? "auto" : "smooth" });
   }));
 
+  // Hero PR card: fails, Upshift fixes it, passes. Loops.
+  const pr = document.getElementById("pr");
+  const prDot = document.getElementById("prDot");
+  const prMsg = document.getElementById("prMsg");
+  const prCount = document.getElementById("prCount");
+  const PR = {
+    fail: ["✗", "CI failing · tests fail at import", "0/16"],
+    fixing: ["", "upshift is fixing…", ""],
+    pass: ["✓", "fixed by upshift · 3 files changed", "16/16"],
+  };
+  const setPR = (state) => {
+    pr.classList.remove("fail", "fixing", "pass");
+    pr.classList.add(state);
+    [prDot.textContent, prMsg.textContent, prCount.textContent] = PR[state];
+  };
+  if (reduced) {
+    setPR("pass");
+    prMsg.textContent = "fixed by upshift · was 0/16";
+  } else {
+    const cycle = async () => {
+      for (;;) {
+        setPR("fail"); await sleep(2600);
+        setPR("fixing"); await sleep(1600);
+        setPR("pass"); await sleep(3200);
+      }
+    };
+    setTimeout(cycle, 1200);
+  }
+
+  // Command demo: each tab replays that command's real run on demo/shop_app.
+  const PHASES = (order) => order.split(" ").map((ph) => ["t-done", `[upshift] ${ph} done`]);
+  const PIPELINE_ORDER = "setup baseline bump research fix verify report";
+  const DEMO = [
+    {
+      what: "Upgrade a package and fix the code it breaks.",
+      cmd: "uv run upshift bump --repo demo/shop_app --package pydantic --to 2",
+      lines: [
+        ["t-dim", "[upshift] run 20261010-145618-pydantic → …"],
+        ...PHASES("setup baseline research bump fix verify report"),
+        ["t-ok", "[upshift] OK: 16 passing, 0 new failures. Report: …/UPSHIFT_REPORT.md"],
+      ],
+      res: "pydantic 1 → 2: <strong>16/16 passing</strong>, only models and orders changed.",
+    },
+    {
+      what: "Find vulnerable deps (pip-audit / OSV) and fix each one.",
+      cmd: "uv run upshift scan --repo demo/shop_app",
+      lines: [
+        ["t-vuln", "[upshift] jinja2 2.11.3 -> 3.1.6: CVE-2024-22195 (PYSEC-2026-1473), CVE-2024-34064 (PYSEC-2026-1474), CVE-2024-56326 (PYSEC-2026-1475), CVE-2025-27516 (PYSEC-2026-1471)"],
+        ["t-vuln", "[upshift] requests 2.31.0 -> 2.33.0: CVE-2024-35195 (PYSEC-2026-1873), CVE-2024-47081 (PYSEC-2026-1872), CVE-2026-25645 (PYSEC-2026-2275)"],
+        ["t-dim", "[upshift] run 20261010-161429-vuln-jinja2 → …"],
+        ...PHASES(PIPELINE_ORDER),
+        ["t-ok", "[upshift] OK: 21 passing, 0 new failures. Report: …/UPSHIFT_REPORT.md"],
+        ["t-dim", "[upshift] run 20261010-161429-vuln-requests → …"],
+        ...PHASES(PIPELINE_ORDER),
+        ["t-ok", "[upshift] OK: 21 passing, 0 new failures. Report: …/UPSHIFT_REPORT.md"],
+      ],
+      res: "jinja2: <strong>4 CVEs fixed</strong>, 21 passing. requests: pin change only, no model calls.",
+    },
+    {
+      what: "Move the Python version everywhere it's pinned, then fix.",
+      cmd: "uv run upshift python --repo demo/shop_app --to 3.12",
+      lines: [
+        ["t-dim", "[upshift] run 20261010-173515-python-3.12 → …"],
+        ...PHASES(PIPELINE_ORDER),
+        ["t-ok", "[upshift] OK: 26 passing, 0 new failures. Report: …/UPSHIFT_REPORT.md"],
+      ],
+      res: "3.10 → 3.12: <strong>26 passing</strong>, 0 new failures.",
+    },
+    {
+      what: "Spot third-party APIs being retired (Deprecation / Sunset headers in neatlogs traces) and migrate before the shutdown.",
+      cmd: "uv run upshift watch --repo demo/shop_app --neatlogs --logs logs/app.log --after-env ACME_SANDBOX_MODE=sunset",
+      lines: [
+        ["t-vuln", "[upshift] acme v1 is deprecated: 22 calls (0 already 410), sunset Sat, 31 Oct 2026 23:59:59 GMT, successor http://127.0.0.1:8765/v2/openapi.json; seen in log, neatlogs"],
+        ["t-dim", "[upshift]   GET /v1/charges/{id}"],
+        ["t-dim", "[upshift]   POST /v1/charges"],
+        ["t-dim", "[upshift] run 20261012-134358-api-acme → …"],
+        ...PHASES(PIPELINE_ORDER),
+        ["t-ok", "[upshift] OK: 30 passing, 0 new failures. Report: …/UPSHIFT_REPORT.md"],
+      ],
+      res: "acme v1 → v2: 22 deprecated calls found, <strong>30/30 passing</strong> after the sunset.",
+    },
+  ];
+  const term = document.getElementById("term");
+  const demoTabs = [...document.querySelectorAll("#demoTabs button")];
+  const demoWhat = document.getElementById("demoWhat");
+  const demoRes = document.getElementById("demoRes");
+  const cursor = document.createElement("span");
+  cursor.className = "cursor";
+  let current = 0, playId = 0, auto = true;
+
+  const line = (cls, text) => {
+    const el = document.createElement("div");
+    el.className = cls;
+    el.textContent = text;
+    term.appendChild(el);
+    term.scrollTop = term.scrollHeight;
+    return el;
+  };
+
+  const play = async (i) => {
+    const id = ++playId, run = DEMO[i];
+    const stale = () => id !== playId;
+    current = i;
+    demoTabs.forEach((b, j) => { b.classList.toggle("on", j === i); b.setAttribute("aria-selected", j === i); });
+    demoWhat.textContent = run.what;
+    demoRes.innerHTML = "";
+    term.textContent = "";
+    if (reduced) {
+      line("t-cmd", run.cmd);
+      run.lines.forEach(([c, t]) => line(c, t));
+      demoRes.innerHTML = run.res;
+      return;
+    }
+    const cmd = line("t-cmd", "");
+    cmd.appendChild(cursor);
+    for (const ch of run.cmd) {
+      cursor.before(ch);
+      await sleep(18 + Math.random() * 28);
+      if (stale()) return;
+    }
+    await sleep(300);
+    if (stale()) return;
+    cursor.remove();
+    for (const [c, t] of run.lines) {
+      line(c, t);
+      await sleep(t.endsWith("fix done") || t.endsWith("research done") ? 520 : 200);
+      if (stale()) return;
+    }
+    demoRes.innerHTML = run.res;
+    line("t-cmd", "").appendChild(cursor);
+    await sleep(3200);
+    if (!stale() && auto) play((i + 1) % DEMO.length);
+  };
+
+  demoTabs.forEach((b, i) => b.addEventListener("click", () => { auto = false; play(i); }));
+  let demoStarted = false;
+  new IntersectionObserver(([e], obs) => {
+    if (e.isIntersecting && !demoStarted) { demoStarted = true; obs.disconnect(); play(0); }
+  }, { threshold: .3 }).observe(term);
+  if (reduced) play(0);
+
   // Fade sections in as they scroll into view.
   const io = new IntersectionObserver((entries) => entries.forEach((e) => {
     if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
@@ -537,15 +736,19 @@
   document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
 
   // Copy buttons copy the command without the trailing comment.
-  document.querySelectorAll(".copy").forEach((btn) => btn.addEventListener("click", async () => {
-    const pre = btn.previousElementSibling.cloneNode(true);
-    pre.querySelectorAll(".c").forEach((c) => c.remove());
+  const copy = async (btn, text) => {
     try {
-      await navigator.clipboard.writeText(pre.textContent.trim());
+      await navigator.clipboard.writeText(text);
       btn.textContent = "copied"; btn.classList.add("ok");
     } catch { btn.textContent = "failed"; }
     setTimeout(() => { btn.textContent = "copy"; btn.classList.remove("ok"); }, 1400);
+  };
+  document.querySelectorAll(".code .copy").forEach((btn) => btn.addEventListener("click", () => {
+    const pre = btn.previousElementSibling.cloneNode(true);
+    pre.querySelectorAll(".c").forEach((c) => c.remove());
+    copy(btn, pre.textContent.trim());
   }));
+  document.getElementById("termCopy").addEventListener("click", (e) => copy(e.currentTarget, DEMO[current].cmd));
 })();
 </script>
 </body>
