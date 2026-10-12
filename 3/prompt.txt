@@ -1,0 +1,74 @@
+I want to remove https://github.com/harsh-madhav/upshift harshgupta-mem0 as a contributor from this how to do it?
+
+---
+
+<pasted_content id="2f23">
+git clone git@github.com:harsh-madhav/upshift.git /tmp/upshift-fix && cd /tmp/upshift-fix
+Cloning into '/tmp/upshift-fix'...
+remote: Enumerating objects: 134, done.
+remote: Counting objects: 100% (134/134), done.
+remote: Compressing objects: 100% (88/88), done.
+remote: Total 134 (delta 45), reused 120 (delta 31), pack-reused 0 (from 0)
+Receiving objects: 100% (134/134), 464.62 KiB | 651.00 KiB/s, done.
+Resolving deltas: 100% (45/45), done.
+harsh@Harshs-MacBook-Pro upshift-fix %  source /Users/harsh/agent-101/neatlogs-agent/.venv/bin/activate
+(upshift) harsh@Harshs-MacBook-Pro upshift-fix % git filter-branch --env-filter '
+if [ "$GIT_AUTHOR_EMAIL" = "harsh.gupta@mem0.ai" ]; then
+  export GIT_AUTHOR_NAME="harsh-madhav"
+  export GIT_AUTHOR_EMAIL="harsh.madhav.gupta@gmail.com"
+fi
+if [ "$GIT_COMMITTER_EMAIL" = "harsh.gupta@mem0.ai" ]; then
+  export GIT_COMMITTER_NAME="harsh-madhav"
+  export GIT_COMMITTER_EMAIL="harsh.madhav.gupta@gmail.com"
+fi' -- --all
+WARNING: git-filter-branch has a glut of gotchas generating mangled history
+         rewrites.  Hit Ctrl-C before proceeding to abort, then use an
+         alternative filtering tool such as 'git filter-repo'
+         (https://github.com/newren/git-filter-repo/) instead.  See the
+         filter-branch manual page for more details; to squelch this warning,
+         set FILTER_BRANCH_SQUELCH_WARNING=1.
+Proceeding with filter-branch...
+
+Rewrite 1710e40dc985097ed9ec788ad119e47c71e3007d (8/8) (0 seconds passed, remaining 0 predicted)    
+Ref 'refs/heads/main' was rewritten
+Ref 'refs/remotes/origin/main' was rewritten
+WARNING: Ref 'refs/remotes/origin/main' is unchanged
+(upshift) harsh@Harshs-MacBook-Pro upshift-fix % git log --format='%h %an <%ae> | %cn <%ce>' --all
+87c36c9 harsh-madhav <harsh.madhav.gupta@gmail.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+1710e40 harsh-madhav <harsh.madhav.gupta@gmail.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+8eeb55f harsh-madhav <harsh.madhav.gupta@gmail.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+235c416 harsh-madhav <harsh.madhav.gupta@gmail.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+acf014e harsh-madhav <harsh.madhav.gupta@gmail.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+4b46a3c harsh-madhav <harsh.madhav.gupta@gmail.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+d94a094 harsh-madhav <harsh.madhav.gupta@gmail.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+6e15b2d harsh-madhav <harsh.madhav.gupta@gmail.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+1b5465c harsh-madhav <harsh.madhav.gupta@gmail.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+0c93b25 harsh-madhav <harsh.madhav.gupta@gmail.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+a00a33f harsh-madhav <harsh.madhav.gupta@gmail.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+fe9fb6c harsh-madhav <harsh.madhav.gupta@gmail.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+40d455c harsh-madhav <77481602+harsh-madhav@users.noreply.github.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+74d28fb harsh-madhav <77481602+harsh-madhav@users.noreply.github.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+70cfb81 harsh-madhav <harsh.madhav.gupta@gmail.com> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+72ba1fa harshgupta-mem0 <harsh.gupta@mem0.ai> | harsh-madhav <harsh.madhav.gupta@gmail.com>
+(upshift) harsh@Harshs-MacBook-Pro upshift-fix % git push --force --all
+git push --force --tags
+ERROR: Permission to harsh-madhav/upshift.git denied to harshgupta-mem0.
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+ERROR: Permission to harsh-madhav/upshift.git denied to harshgupta-mem0.
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+(upshift) harsh@Harshs-MacBook-Pro upshift-fix % 
+</pasted_content id="2f23">
+
+---
+
+okay check now all good?
+
+---
+
+yes run the reset
