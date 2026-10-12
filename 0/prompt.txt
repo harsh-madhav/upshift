@@ -1,0 +1,172 @@
+Plan a landing page for this, with animation and the product name is upshift, and show the commands to run, paste the github link for the repo etc. Make sure to make it minimal but it should be self explainatory
+
+---
+
+<task-notification>
+<task-id>a7dd7f719c666b53c</task-id>
+<tool-use-id>toolu_01NBvcW44b2W7C6Ttk2gNhhz</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-harsh-agent-101-neatlogs-agent/00bb8aad-cf93-4d7a-a955-13ae9ab83b15/tasks/a7dd7f719c666b53c.output</output-file>
+<status>completed</status>
+<summary>Agent "Explore Upshift product details" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Here's what's in the repo for the Upshift landing page. All paths are under `/Users/harsh/agent-101/neatlogs-agent`. I didn't change anything.
+
+## 1. What Upshift does
+
+**Pitch** (README tagline: *"Dependabot opens the PR. Upshift makes it pass."*; the asset uses *"Your deps move. Your code keeps up."*):
+Upshift is an agent that fixes the code a version change breaks. You give it a Python repo and a package to upgrade, or let it find the vulnerable ones. It researches the upgrade itself: changelog, release notes, the migration guide, and an API diff made by installing both versions. From that it writes a playbook where every rule cites its source. Then it bumps the dependency and fixes the code one root cause at a time. Finally it proves nothing new broke, against the test results it recorded before touching anything. It was built for #neatHack with neatlogs, Entire and cfo.ai, and you bring your own model key.
+
+**Pipeline** (README "How a job runs"; `upshift/pipeline.py`):
+1. **setup**: clone the repo, create a venv, install, resolve the target version from PyPI.
+2. **baseline**: run the tests before changing anything (`entire graph verify --record-baseline`).
+3. **bump**: rewrite the pins, install the new version, see what breaks.
+4. **research**: docs, changelog, GitHub release notes and an API diff produce the cited playbook. This step is skipped for a security fix that breaks nothing.
+5. **fix**: one root cause per round. Progress is committed and regressions are reverted. Uses the `entire graph search / impact / explain` tools.
+6. **verify**: no new failures against the baseline and no old APIs left from the playbook. Security fixes run pip-audit again.
+7. **report**: writes `UPSHIFT_REPORT.md` with the changes, verification and sources.
+
+Every job is one neatlogs trace.
+
+**Key features:**
+- **Three commands:**
+  - `bump`: upgrade a package.
+  - `scan`: pip-audit/OSV, including transitive dependencies. It picks the smallest release that fixes every advisory, one job per package. A fix that breaks nothing is just a pin change with no model calls.
+  - `python`: moves the Python pins in `.python-version`, the Dockerfile, GitHub Actions, tox and pyproject.
+- `resume` continues a crashed run, and `--dry-run` makes no model calls.
+- Playbooks are cached in `playbooks/` and reused (pydantic 1→2, jinja2 2.11→3.1, Python 3.10→3.12).
+- A pre-commit secrets hook blocks committed keys.
+- Every model client is wrapped with neatlogs tracing.
+- **Roadmap:** "Third-party API drift comes next." The asset calls this `upshift watch`. It is not implemented in `cli.py`.
+
+**Measured cost per job** (from `business/cfo-inputs.md`):
+- requests security fix: $0
+- jinja2 security fix: about $0.07
+- pydantic 1→2: $0.33
+- Python 3.10→3.12: about $0.51
+
+## 2. Install and run commands (verbatim from README)
+
+Requirements: Python 3.11+, uv, and the Entire CLI with its graph plugin (`entire plugin install graph`). Without Entire the agent still runs, but the graph tools report themselves unavailable. The CLI entrypoint is `upshift = "upshift.cli:main"`.
+
+```bash
+uv sync
+python3 scripts/check_secrets.py --install   # pre-commit hook that blocks committed keys
+cp .env.example .env                         # fill in your provider and key (git-ignored)
+
+# no model calls: clone, baseline, research, bump, and show what breaks
+uv run upshift bump --repo demo/shop_app --package pydantic --to 2 --dry-run
+
+# the full agent
+uv run upshift bump --repo demo/shop_app --package pydantic --to 2
+uv run upshift scan --repo demo/shop_app                     # find known vulnerabilities and fix each one
+uv run upshift python --repo demo/shop_app --to 3.12         # move to a newer Python and fix what breaks
+uv run upshift resume &lt;run-id&gt;     # continue a crashed or killed run
+```
+
+Tests: `uv run pytest`.
+
+Extra CLI flags: `--python`, `--fresh-research`, and `--from` (on the `python` command).
+
+**Model providers** (set `UPSHIFT_PROVIDER` and `UPSHIFT_MODEL` in `.env` or your shell):
+
+| `UPSHIFT_PROVIDER` | Needs | Notes |
+|---|---|---|
+| `anthropic` | `ANTHROPIC_API_KEY` | `UPSHIFT_MODEL` defaults to `claude-opus-5-5` |
+| `azure-openai` | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` | `OPENAI_API_VERSION=2024-10-21`; the model is the deployment name |
+| `litellm` | `LITELLM_API_KEY` | Defaults to the neatHack proxy (https://neatlogs.com/hackathon/models); `LITELLM_BASE_URL` for your own proxy |
+| `openai` | `OPENAI_API_KEY` | `OPENAI_BASE_URL` for OpenRouter, Groq, Together or a local server |
+| `bedrock` | `UPSHIFT_AWS_PROFILE` | `UPSHIFT_AWS_REGION=us-west-2`; an explicit profile is required |
+
+- The neatHack proxy models are `claude-opus-4.6`, `claude-sonnet-4.6`, `claude-haiku`, `nova-pro`, `nova-lite`, `nova-2-lite` and `nova-micro` (e.g. `REDACTED.6`).
+- Optional: `NEATLOGS_API_KEY` (without it, spans are created but not exported) and `UPSHIFT_AGENT_VERSION=v0`.
+
+## 3. GitHub repo
+
+`git remote -v` shows `origin https://harsh-madhav@github.com/harsh-madhav/upshift.git` for both fetch and push. The public URL is **https://github.com/harsh-madhav/upshift**.
+
+## 4. Existing web files, assets and brand
+
+- There is no `docs/` or `site/` folder, no landing page, and no favicon or SVG logo.
+- The only HTML is `assets/upshift-tools.html`, a 2000x1125 slide/poster, plus its render `assets/upshift-tools.png`. `assets/` is **untracked**: it's in `.gitignore` and was removed from git in commit 235c416.
+- **Brand tokens** from that HTML's `:root`:
+  - Colours: `--paper #F1F2EE`, `--ink #0D0D0D`, `--soft #55585E`, `--rule #C9CBC6`, `--blue #2D5BFF`, `--blue-tint #E3E9FF`, `--green #0E9A62`, `--yellow #FFD12E`, `--red #E5484D`, `--white #FFFFFF`
+  - Fonts: **Archivo** (variable wdth/wght, display, weight 800–900, font-stretch 108–112%) and **JetBrains Mono**, both from Google Fonts.
+- **Wordmark:** a 50px black rounded square with a yellow "↑" glyph, then "upshift" in Archivo 800, then a pill badge "#neatHack".
+- **Poster copy you can reuse:**
+  - Three triggers: `upshift scan` (VULN), `upshift bump` (ASK), `upshift watch` (DRIFT)
+  - Loop: Research → Playbook → Fix → Verify → Recover → PR + report
+  - Partner panels: neatlogs, Entire, cfo.ai
+  - Footer: "#neatHack · Oct 10–12, 2026"
+
+**The demo app** (`demo/shop_app/`) is a small shop with orders, receipts and settings, deliberately pinned to old versions so each upgrade breaks something:
+- **pydantic 1.10.13** in `shop/models.py` and `shop/orders.py`: `constr(regex=)`, `validator`, `root_validator`, `orm_mode`, `parse_obj`, `.dict()`. Upgrading to 2.14.0 makes the suite fail at import; after the fix all 16 tests pass and only models/orders changed.
+- **jinja2 2.11.3** in `shop/receipts.py`: `Markup`, `escape`, `contextfilter`, `environmentfilter`. The 3.1.6 security fix covers 4 CVEs; Upshift moved the imports to markupsafe and switched to `pass_context`/`pass_environment`, and all 21 tests pass.
+- **requests 2.31.0**: 3 CVEs, fixed by a pin change only, with no model calls.
+- **Python 3.10** (`.python-version`, Dockerfile, CI): `shop/settings.py` uses `SafeConfigParser`, `distutils.strtobool` and `inspect.getargspec`. Moving to 3.12, Upshift produced `ConfigParser`, a local `strtobool` and `getfullargspec`; all 26 tests pass.
+- **Untracked work in progress:** `shop/payments.py`, `tests/acme_sandbox.py`, `tests/conftest.py`, `tests/test_payments.py` and `scripts/traffic.py`, plus a modification to `shop/orders.py`. This is the API-drift demo. A fake "acme" payments API v1 sends `Deprecation`/`Sunset` headers ("Sat, 31 Oct 2026") and returns 410 after sunset, and the migration target is v2 `/v2/payments`. Traffic is logged to `logs/app.log` and traced in neatlogs. That feature isn't implemented yet.
+
+## 5. Sample terminal output (real logs, good for an animated terminal)
+
+These come from `.upshift/scan-run.log` and `.upshift/python-sonnet.log`. I shortened the absolute paths with `…`.
+
+```
+$ uv run upshift scan --repo demo/shop_app
+[upshift] jinja2 2.11.3 -&gt; 3.1.6: CVE-2024-22195 (PYSEC-2026-1473), CVE-2024-34064 (PYSEC-2026-1474), CVE-2024-56326 (PYSEC-2026-1475), CVE-2025-27516 (PYSEC-2026-1471)
+[upshift] requests 2.31.0 -&gt; 2.33.0: CVE-2024-35195 (PYSEC-2026-1873), CVE-2024-47081 (PYSEC-2026-1872), CVE-2026-25645 (PYSEC-2026-2275)
+[upshift] run 20261010-161429-vuln-jinja2 → …/.upshift/runs/20261010-161429-vuln-jinja2
+[upshift] setup done
+[upshift] baseline done
+[upshift] bump done
+[upshift] research done
+[upshift] fix done
+[upshift] verify done
+[upshift] report done
+[upshift] OK: 21 passing, 0 new failures. Report: …/UPSHIFT_REPORT.md
+[upshift] run 20261010-161429-vuln-requests → …
+...
+[upshift] OK: 21 passing, 0 new failures. Report: …/UPSHIFT_REPORT.md
+```
+
+```
+$ uv run upshift python --repo demo/shop_app --to 3.12
+[upshift] run 20261010-173515-python-3.12 → …
+[upshift] setup done
+[upshift] baseline done
+[upshift] bump done
+[upshift] research done
+[upshift] fix done
+[upshift] verify done
+[upshift] report done
+[upshift] OK: 26 passing, 0 new failures. Report: …/UPSHIFT_REPORT.md
+```
+
+**Report excerpt** (`.upshift/runs/20261010-161429-vuln-jinja2/UPSHIFT_REPORT.md`), usable as a result card:
+
+```
+# Upshift: jinja2 2.11.3 → 3.1.6 (security fix)
+**Result:** no new test failures · 21 passing (baseline 21) · 4/4 advisories fixed
+- round 1: Migrated removed Jinja2 imports/decorators in shop/receipts.py: Markup/escape now come from markupsafe ... (0 -&gt; 21 passing, 0 new failures left)
+`2 files changed, 5 insertions(+), 4 deletions(-)`
+VERDICT: NO EFFECT — the target tests behave exactly as before your edit.
+```
+
+Other numbers worth quoting, from `hackathon.md`:
+- jinja2 fix: 33 s, $0.11
+- requests fix: 2.4 s, $0
+- Python 3.12 run: 80 s end to end
+
+Other sources: the reports for pydantic (`.upshift/runs/20261010-145618-pydantic/`) and Python (`20261010-165253-python-3.12/`), and `hackathon.md`, which has the full build log including cost and trace tables.</result>
+<usage><subagent_tokens>71796</subagent_tokens><tool_uses>9</tool_uses><duration_ms>59660</duration_ms></usage>
+</task-notification>
+
+---
+
+look at this website https://dainiksamachar.arnabsamanta.in/, try something like this not copy it but something which is more interesting and catchy
+
+---
+
+okay, can we have tab at the top to directly jump to how to use? etc
+
+---
+
+okay so any improvement here? and make sure to make the readme as easy for any one to follow

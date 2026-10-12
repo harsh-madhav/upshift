@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01NBvcW44b2W7C6Ttk2gNhhz",
+  "agent_id": "a7dd7f719c666b53c",
+  "subagent_type": "Explore",
+  "task_description": "Explore Upshift product details",
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 67291,
+    "cache_read_tokens": 282500,
+    "output_tokens": 4599,
+    "api_call_count": 7
+  },
+  "started_at": "2026-10-12T13:32:32.506346+05:30",
+  "completed_at": "2026-10-12T13:33:32.043933+05:30"
+}

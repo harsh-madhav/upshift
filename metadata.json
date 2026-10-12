@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4QTZCN9J8WW9TBXEWM49VA6",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "README.md",
+    "docs/index.html",
+    "hackathon.md",
+    "tests/test_fix_loop.py",
+    "upshift/agent.py",
+    "upshift/pipeline.py",
+    "upshift/playbook.py",
+    "upshift/workspace.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 130,
+    "cache_creation_tokens": 302833,
+    "cache_read_tokens": 8340423,
+    "output_tokens": 73222,
+    "api_call_count": 64,
+    "subagent_tokens": {
+      "input_tokens": 14,
+      "cache_creation_tokens": 67291,
+      "cache_read_tokens": 282500,
+      "output_tokens": 4599,
+      "api_call_count": 7
+    }
+  }
+}
