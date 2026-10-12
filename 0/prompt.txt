@@ -170,3 +170,7 @@ okay, can we have tab at the top to directly jump to how to use? etc
 ---
 
 okay so any improvement here? and make sure to make the readme as easy for any one to follow
+
+---
+
+I still feel we can improve the landing page
