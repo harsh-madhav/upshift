@@ -4,6 +4,19 @@ version = "0.1.0"
 description = "An agent that fixes the code a dependency or API version change breaks."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["dependencies", "upgrade", "migration", "security", "agent", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = [
     "boto3>=1.35",
     "openai>=1.50",
@@ -12,6 +25,12 @@ dependencies = [
     "packaging>=24",
     "anthropic>=1.13.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/harsh-madhav/upshift"
+Repository = "https://github.com/harsh-madhav/upshift"
+Issues = "https://github.com/harsh-madhav/upshift/issues"
+Changelog = "https://github.com/harsh-madhav/upshift/blob/main/CHANGELOG.md"
 
 [project.scripts]
 upshift = "upshift.cli:main"

@@ -1,5 +1,9 @@
 # Upshift
 
+[![CI](https://github.com/harsh-madhav/upshift/actions/workflows/ci.yml/badge.svg)](https://github.com/harsh-madhav/upshift/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)
+
 Dependabot opens the PR. Upshift makes it pass.
 
 Upshift is an agent that fixes the code a version change breaks. Point it at a Python repo and tell it what
@@ -115,12 +119,13 @@ Start with `--dry-run` to see what breaks before spending any tokens.
 | Command | Required | Useful options |
 |---|---|---|
 | `bump` | `--repo`, `--package` | `--to VERSION` (default: latest stable), `--python`, `--fresh-research`, `--dry-run` |
-| `scan` | `--repo` | `--python`, `--dry-run` |
+| `scan` | `--repo` | `--package NAME` (fix only this one; the scan still reports everything), `--python`, `--dry-run` |
 | `python` | `--repo`, `--to` | `--from` (default: the repo's `.python-version`), `--fresh-research`, `--dry-run` |
 | `watch` | `--repo` | `--neatlogs`, `--logs FILE`, `--since MINUTES`, `--after-env KEY=VALUE`, `--python`, `--fresh-research`, `--dry-run` |
 | `resume` | a run id | `--dry-run` |
 
-- `--python` picks the Python for the project's venv. The default is the repo's `.python-version`, else 3.12.
+- `--python` picks the Python for the project's venv. The default is the repo's `.python-version`, else the
+  lowest version its `requires-python` allows, else 3.12.
 - `--fresh-research` ignores a cached playbook and researches the upgrade again.
 - Run `uv run upshift <command> --help` for the full list.
 
@@ -182,7 +187,14 @@ Installs the repo once and audits the exact installed versions with
 [pip-audit](https://github.com/pypa/pip-audit) (OSV advisories, transitive dependencies included). It then starts
 one job per vulnerable package, like one PR each. The target is the smallest release that fixes every advisory,
 preferring the current major line. A fix that breaks nothing is just a pin change with no model calls. One that
-breaks the code goes through research and the fix loop like any other upgrade.
+breaks the code goes through research and the fix loop like any other upgrade. `--package NAME` fixes just that
+package while still reporting every finding.
+
+If the project has a `uv.lock` or `poetry.lock`, installs are constrained to the locked versions, so the baseline
+tests what actually ships, and the audit also covers locked packages the default install leaves out (optional
+extras). A fix re-locks the package (`uv lock --upgrade-package` / `poetry update --lock`), and the report lists
+every locked version that moved. If a repo's Python projects live in subfolders, `scan` stops and lists them
+rather than reporting a false all-clear.
 
 ### `python`
 Moves the version pins: `.python-version`, the Dockerfile base image, GitHub Actions, tox, and the
@@ -211,15 +223,30 @@ uv run upshift watch --repo demo/shop_app --neatlogs --logs logs/app.log --after
 
 ## Contributing
 
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers the dev setup, where things live in the code
+and how to send a pull request. In short:
+
 ```bash
 uv sync
 python3 scripts/check_secrets.py --install   # pre-commit hook that blocks committed keys
 uv run pytest
 ```
 
-The fix-loop tests drive the real loop (repo, venv, pytest, git) with a scripted model in place of a real one.
+The tests need no API key: the fix-loop tests drive the real loop (repo, venv, pytest, git) with a scripted model
+in place of a real one.
 
 The agent uses one message format internally and each provider translates to it, so adding a provider means one
 adapter in `upshift/llm.py`. Every client is wrapped with `neatlogs.wrap`, so model calls are traced with tokens
 and latency whichever provider you pick. With Anthropic, Claude's thinking blocks are replayed unchanged and old
 tool results are trimmed by the API's context editing, so the conversation stays append-only.
+
+Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+
+## Security
+
+Upshift installs and runs the target project's tests, so only point it at repos you trust. To report a
+vulnerability, see [SECURITY.md](SECURITY.md); please don't open a public issue.
+
+## License
+
+[MIT](LICENSE)

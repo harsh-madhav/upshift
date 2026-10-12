@@ -1,0 +1,46 @@
+name: Bug report
+description: Upshift did something wrong or crashed.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please remove any API keys or private code before posting.
+        Security problems go through [private reporting](https://github.com/harsh-madhav/upshift/security/advisories/new) instead.
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      description: The exact command you ran.
+      placeholder: uv run upshift bump --repo ./my-app --package pydantic --to 2
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: The `[upshift]` lines and any error. If the run got far enough, the relevant part of `UPSHIFT_REPORT.md` helps too.
+      render: text
+  - type: input
+    id: provider
+    attributes:
+      label: Model provider and model
+      placeholder: anthropic, claude-opus-5-5
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, uv version, and whether the Entire CLI is installed.
+      placeholder: macOS 15, Python 3.12, uv 0.5, Entire installed
+  - type: input
+    id: repo
+    attributes:
+      label: Target repo
+      description: A public repo where this happens, if you have one.

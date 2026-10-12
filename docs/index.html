@@ -243,6 +243,13 @@
   .code pre { margin: 0; padding: 10px 76px 10px 14px; font: 13.5px/20px var(--mono); overflow-x: auto; }
   .code pre .c { color: var(--muted); }
   .note.before { margin: -12px 0 24px; }
+  .info { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 40px 0 0; }
+  .info > div { padding: 18px; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); }
+  .info h4 { margin: 0 0 6px; font-size: 15px; font-weight: 700; }
+  .info p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--muted); }
+  .info code { color: var(--text); font-size: 12.5px; }
+  .info a { color: var(--text); }
+  .btn.docs { margin: 20px 0 0; }
   .note a, .demo-res a { color: var(--text); }
   .expect { margin: 4px 0 4px 40px; font-size: 14px; color: var(--muted); }
   .expect code { color: var(--green); }
@@ -255,6 +262,9 @@
   .note { color: var(--muted); font-size: 14px; margin: 18px 0 0; }
   .note code { color: var(--text); }
 
+  .foot-links { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+  .foot-links a { color: var(--muted); text-decoration: none; }
+  .foot-links a:hover { color: var(--text); }
   footer { margin: 120px var(--gutter) 0; padding: 28px 0 40px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 
   .js .reveal { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }
@@ -269,6 +279,7 @@
     .demo-tabs button { padding: 9px 4px; text-align: center; border-radius: 999px; }
     .demo-tabs button b { margin: 0; font-size: 14px; }
     .demo-tabs button span { display: none; }
+    .info { grid-template-columns: repeat(2, 1fr); }
     .demo-what { display: block; }
     .term pre { height: 400px; font-size: 12px; }
   }
@@ -289,6 +300,7 @@
     .step { grid-template-columns: 1fr; gap: 4px; }
     .step > span { line-height: 1; }
     .expect { margin-left: 0; }
+    .info { grid-template-columns: 1fr; }
     .code pre { white-space: pre-wrap; word-break: break-word; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -445,16 +457,24 @@ ANTHROPIC_API_KEY=sk-ant-...</span></pre><button class="copy">copy</button></div
       <div class="step"><span>6</span><div class="code"><pre>uv run upshift scan --repo demo/shop_app  <span class="c"># fix known vulnerabilities</span></pre><button class="copy">copy</button></div></div>
       <div class="step"><span>7</span><div class="code"><pre>uv run upshift python --repo demo/shop_app --to 3.12  <span class="c"># move to Python 3.12</span></pre><button class="copy">copy</button></div></div>
     </div>
-    <p class="note">On your own project: <code>--repo</code> takes a local path or a git URL, and the project needs a pytest suite.<br>
-      <code>watch</code> needs the fake acme API running first: see <a href="https://github.com/harsh-madhav/upshift#the-api-drift-demo">the API drift demo</a>.<br>
-      Providers: <code>anthropic</code> · <code>openai</code> · <code>azure-openai</code> · <code>litellm</code> · <code>bedrock</code>. Bring your own credentials: an API key, plus the endpoint for Azure; Bedrock uses an AWS profile (<code>UPSHIFT_AWS_PROFILE</code>).<br>
-      Crashed run? <code>uv run upshift resume &lt;run-id&gt;</code>. The run id is printed at the start, and is the folder name under <code>.upshift/runs/</code>.<br>
-      Providers, every option and troubleshooting: <a href="https://github.com/harsh-madhav/upshift#readme">the README</a>.</p>
+    <div class="info">
+      <div><h4>Your own project</h4><p>Point <code>--repo</code> at a local path or a git URL. The project needs a pytest suite.</p></div>
+      <div><h4>Models</h4><p>Anthropic, OpenAI, Azure OpenAI, LiteLLM or Bedrock, with your own credentials. Set them in <code>.env</code>.</p></div>
+      <div><h4>Resume a run</h4><p><code>uv run upshift resume &lt;run-id&gt;</code> continues from the last finished phase. The id is printed when a run starts.</p></div>
+      <div><h4>API drift demo</h4><p><code>watch</code> runs against a local acme sandbox. <a href="https://github.com/harsh-madhav/upshift#the-api-drift-demo">Set it up</a> first.</p></div>
+    </div>
+    <a class="btn docs" href="https://github.com/harsh-madhav/upshift#readme">Full documentation ↗</a>
   </section>
 </main>
 
 <footer>
   <a href="https://github.com/harsh-madhav/upshift">github.com/harsh-madhav/upshift</a>
+  <nav class="foot-links" aria-label="Project">
+    <a href="https://github.com/harsh-madhav/upshift/blob/main/CONTRIBUTING.md">Contributing</a>
+    <a href="https://github.com/harsh-madhav/upshift/blob/main/SECURITY.md">Security</a>
+    <a href="https://github.com/harsh-madhav/upshift/blob/main/CHANGELOG.md">Changelog</a>
+    <a href="https://github.com/harsh-madhav/upshift/blob/main/LICENSE">MIT License</a>
+  </nav>
 </footer>
 
 <script>
