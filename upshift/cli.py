@@ -1,6 +1,7 @@
 """upshift bump --repo PATH_OR_URL --package NAME [--to VERSION]
 upshift scan --repo PATH_OR_URL
 upshift python --repo PATH_OR_URL --to 3.12
+upshift watch --repo PATH_OR_URL [--neatlogs] [--logs PATH] [--after-env KEY=VALUE]
 upshift resume RUN_ID"""
 
 import argparse
@@ -9,7 +10,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import pipeline, pyversion, tracing, vuln
+from . import drift, pipeline, pyversion, tracing, vuln
 from .llm import LLMConfigError
 from .state import RunState
 
@@ -58,6 +59,18 @@ def main(argv: list[str] | None = None) -> int:
     py.add_argument("--dry-run", action="store_true",
                     help="no model calls: set up, baseline, move to the new Python, show what breaks")
 
+    watch = sub.add_parser("watch", help="find third-party API calls that are being retired and migrate them")
+    watch.add_argument("--repo", required=True, help="local path or git URL")
+    watch.add_argument("--neatlogs", action="store_true", help="search the app's neatlogs traces (NEATLOGS_API_KEY)")
+    watch.add_argument("--logs", help="the app's API call log (JSON lines), relative to the repo or absolute")
+    watch.add_argument("--since", type=int, default=1440, help="minutes of traces to search (default 1440)")
+    watch.add_argument("--after-env", action="append", default=[], metavar="KEY=VALUE",
+                       help="test environment that reproduces the API after the change, e.g. a sandbox mode")
+    watch.add_argument("--python", help="Python for the project's venv (default: its .python-version, else 3.12)")
+    watch.add_argument("--fresh-research", action="store_true")
+    watch.add_argument("--dry-run", action="store_true",
+                       help="no model calls: detect, set up, baseline, test as after the change, show what breaks")
+
     resume = sub.add_parser("resume", help="continue a run from its last completed phase")
     resume.add_argument("run_id")
     resume.add_argument("--dry-run", action="store_true")
@@ -65,7 +78,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     stamp = time.strftime("%Y%m%d-%H%M%S")
     jobs = []
-    if args.command in ("bump", "scan"):
+    if args.command in ("bump", "scan", "watch"):
         args.python = args.python or pyversion.detect(args.repo) or "3.12"
     if args.command == "python":
         state = RunState(run_id=f"{stamp}-python-{args.to}", kind="python", source=args.repo, package="python",
@@ -81,6 +94,8 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "resume":
         state = RunState.load(args.run_id)
         jobs, tags = [state], [state.kind, state.package]
+    elif args.command == "watch":
+        tags = ["api"]
     else:
         tags = ["vuln"]
 
@@ -90,6 +105,14 @@ def main(argv: list[str] | None = None) -> int:
             jobs = vuln.scan(args.repo, args.python, stamp)
             if not jobs:
                 print("[upshift] nothing to fix")
+        if args.command == "watch":
+            log = Path(args.logs) if args.logs else None
+            if log and not log.is_absolute():
+                log = Path(args.repo) / log
+            after_env = dict(item.split("=", 1) for item in args.after_env)
+            jobs = drift.watch(args.repo, args.python, stamp, log, args.neatlogs, after_env, args.since)
+            for job in jobs:
+                job.fresh_research = args.fresh_research
         results = [run_job(state, args.dry_run) for state in jobs]
     except LLMConfigError as exc:
         print(f"[upshift] {exc}", file=sys.stderr)

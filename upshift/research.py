@@ -266,6 +266,72 @@ def gather_python(old: str, new: str, scratch: Path) -> dict:
     }
 
 
+def describe_openapi(spec: dict) -> list[str]:
+    """One line per operation: method, path, required headers, body fields (* = required), response fields."""
+    def fields(schema: dict) -> str:
+        if not isinstance(schema, dict):
+            return ""
+        required = set(schema.get("required", []))
+        parts = []
+        for name, prop in (schema.get("properties") or {}).items():
+            inner = fields(prop) if prop.get("type") == "object" else prop.get("type", "")
+            parts.append(f"{name}{'*' if name in required else ''}:{inner}" if inner else name)
+        closed = " (no other fields)" if schema.get("additionalProperties") is False else ""
+        return "{" + ", ".join(parts) + "}" + closed
+
+    lines = []
+    for path, ops in (spec.get("paths") or {}).items():
+        for method, op in ops.items():
+            headers = [p["name"] + ("*" if p.get("required") else "") for p in op.get("parameters", [])
+                       if p.get("in") == "header"]
+            body = (op.get("requestBody") or {}).get("content", {}).get("application/json", {}).get("schema")
+            responses = []
+            for code, response in (op.get("responses") or {}).items():
+                schema = (response.get("content") or {}).get("application/json", {}).get("schema")
+                responses.append(f"{code} {fields(schema)}" if schema else code)
+            lines.append(f"{method.upper()} {path}" + (" [deprecated]" if op.get("deprecated") else "")
+                         + (f" headers {headers}" if headers else "") + (f" body {fields(body)}" if body else "")
+                         + f" -> {'; '.join(responses)}")
+    return lines
+
+
+def api_contract_diff(old_url: str, new_url: str) -> str:
+    """Old and new OpenAPI specs side by side, operation by operation."""
+    specs = {}
+    for label, url in (("old", old_url), ("new", new_url)):
+        try:
+            response = http_get(url)
+            response.raise_for_status()
+            specs[label] = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            return f"[OpenAPI diff unavailable: could not read the {label} spec at {url}: {exc}]"
+    return ("OLD version operations:\n" + "\n".join(f"- {l}" for l in describe_openapi(specs["old"]))
+            + "\n\nNEW version operations:\n" + "\n".join(f"+ {l}" for l in describe_openapi(specs["new"])))
+
+
+@neatlogs.span(kind="RETRIEVER", tool_name="gather_api_sources")
+def gather_api(evidence: dict, old: str, new: str) -> dict:
+    """Research for a third-party API migration: the provider's migration guide and both OpenAPI specs."""
+    successor = evidence["successor"]
+    old_spec = successor.replace(f"/{new}/", f"/{old}/")  # providers publish each version's spec side by side
+    links = {"Successor version (OpenAPI)": successor, f"{old} OpenAPI": old_spec}
+    docs = {}
+    if evidence.get("deprecation_doc"):
+        links["Deprecation / migration guide"] = evidence["deprecation_doc"]
+        docs["Migration guide"] = fetch_text(evidence["deprecation_doc"], cap=20000)
+    seen = (f"Calls the provider marked deprecated: {', '.join(evidence['endpoints'])}. "
+            f"Sunset: {evidence.get('sunset') or 'not announced'}.")
+    return {
+        "package": evidence["api"],
+        "old": old,
+        "new": new,
+        "links": links,
+        "docs": docs,
+        "release_notes": f"[third-party API, not a package] {seen}",
+        "api_diff": api_contract_diff(old_spec, successor),
+    }
+
+
 def candidate_links(info: dict) -> dict[str, str]:
     urls = info["info"].get("project_urls") or {}
     if info["info"].get("home_page"):

@@ -15,7 +15,7 @@ from . import graph, playbook, pyversion, research, tracing, vuln
 from .agent import FixLoop
 from .llm import LLMError, make_llm
 from .state import PHASES as PHASE_ORDER, RunState
-from .workspace import Workspace
+from .workspace import Workspace, is_test_file
 
 REPORT = "UPSHIFT_REPORT.md"
 
@@ -25,7 +25,7 @@ class Stop(Exception):
 
 
 def run(state: RunState, dry_run: bool = False) -> RunState:
-    ws = Workspace(state.dir, python=state.python)
+    ws = Workspace(state.dir, python=state.python, env=state.after_env if state.reached("bump") else {})
     llm = None if dry_run else make_llm()
     with neatlogs.identify(session_id=state.run_id):
         with neatlogs.trace(f"upshift.{state.kind}", kind="WORKFLOW") as root:
@@ -66,6 +66,8 @@ def next_phase(phase: str) -> str:
 def setup(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
     if state.kind == "python":
         return setup_python(state, ws)
+    if state.kind == "api":
+        return setup_api(state, ws)
     info = research.pypi_info(state.package)
     state.new = research.resolve_target(info, state.wanted)
     if not ws.repo.exists():
@@ -78,6 +80,15 @@ def setup(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
         raise Stop(f"{state.package} is not installed by this project")
     if Version(state.old) >= Version(state.new):
         raise Stop(f"{state.package} is already at {state.old} (target {state.new})")
+
+
+def setup_api(state: RunState, ws: Workspace) -> None:
+    if not ws.repo.exists():
+        ws.clone(state.source, f"upshift/api-{state.package}-{state.new}")
+        state.base_commit = ws.git("rev-parse", "HEAD").strip()
+    ws.install()
+    tracing.annotate(old=state.old, new=state.new, sunset=state.evidence.get("sunset"),
+                     drift_calls=state.evidence.get("calls"))
 
 
 def setup_python(state: RunState, ws: Workspace) -> None:
@@ -108,6 +119,10 @@ def baseline(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
 def bump(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
     if state.kind == "python":
         move_python(state, ws)
+    elif state.kind == "api":
+        # nothing to pin: the change is on the provider's side, so test as it will be after the sunset
+        ws.env = state.after_env
+        tracing.annotate(after_env=", ".join(f"{k}={v}" for k, v in state.after_env.items()) or "none")
     else:
         ws.set_version(state.package, state.new)
         if not ws.pin_files(state.package):
@@ -155,6 +170,8 @@ def do_research(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
         env_before = state.dir / "env-before.txt"
         if state.kind == "python":
             sources = research.gather_python(state.old, state.new, state.dir)
+        elif state.kind == "api":
+            sources = research.gather_api(state.evidence, state.old, state.new)
         else:
             sources = research.gather(state.package, state.old, state.new, state.python, state.dir,
                                       env_before if env_before.exists() else None)
@@ -183,7 +200,8 @@ def fix(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
 def verify(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
     run = ws.run_tests()
     new_failures = sorted(run.failing - set(state.baseline_failing))
-    verdict = graph.verify(str(ws.repo), ws.test_cmd, pre_edit_baseline=str(state.dir / "verify-baseline.json"))
+    verdict = graph.verify(str(ws.repo), ws.test_cmd, pre_edit_baseline=str(state.dir / "verify-baseline.json"),
+                           env=ws.env)
     leftovers = leftover_usages(ws, load_playbook(state))
     remaining = []
     if state.kind == "vuln":
@@ -200,10 +218,6 @@ def verify(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
     }
     tracing.annotate(ok=state.result["ok"], new_failures=len(new_failures), leftovers=len(leftovers),
                      advisories_remaining=len(remaining))
-
-
-def is_test_file(rel: Path) -> bool:
-    return "tests" in rel.parts or "test" in rel.parts or rel.name.startswith("test_") or rel.name == "conftest.py"
 
 
 def leftover_usages(ws: Workspace, pb: dict, limit: int = 50) -> list[str]:
@@ -255,6 +269,16 @@ def report(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
         "## Verification (entire graph verify against the pre-upgrade baseline)",
         "```", r["entire_verdict"].strip(), "```",
     ]
+    if state.kind == "api":
+        e = state.evidence
+        lines += ["", f"## Why: {state.package} {state.old} is being retired",
+                  f"- {e['calls']} calls answered with deprecation signals ({e['gone']} already 410 Gone), "
+                  f"seen in {', '.join(e['sources'])}",
+                  f"- Sunset: {e.get('sunset') or 'not announced'}; successor: {e.get('successor')}",
+                  *[f"- `{endpoint}`" for endpoint in e["endpoints"]],
+                  *[f"- trace `{t}`" for t in e["traces"][:5]],
+                  f"- Tests ran with {', '.join(f'{k}={v}' for k, v in state.after_env.items())} "
+                  "to behave as after the sunset"]
     if state.advisories:
         lines += ["", "## Security advisories (pip-audit, OSV)",
                   *[f"- {vuln.label(a, info['aliases'])}: "

@@ -25,6 +25,8 @@ class RunState:
     baseline_passed: int = 0
     after_bump_failing: list[str] = field(default_factory=list)   # new failures right after the bump
     advisories: dict = field(default_factory=dict)  # vuln jobs: {advisory id: {aliases, fix_versions}}
+    evidence: dict = field(default_factory=dict)    # api jobs: what the drift detection found
+    after_env: dict = field(default_factory=dict)   # api jobs: test env that reproduces the change, from bump on
     playbook_path: str = ""
     round: int = 0
     round_log: list[str] = field(default_factory=list)

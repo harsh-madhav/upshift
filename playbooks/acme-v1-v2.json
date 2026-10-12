@@ -1,0 +1,99 @@
+{
+  "package": "acme",
+  "old": "v1",
+  "new": "v2",
+  "summary": "The acme v1 `/v1/charges` API is fully replaced by `/v2/payments`. Every endpoint URL, all request field names and types, required headers, and response shapes have changed. v1 is sunset on 31 Oct 2026 after which all v1 requests return 410 Gone.",
+  "rules": [
+    {
+      "old": "POST /v1/charges",
+      "new": "POST /v2/payments",
+      "detect": "v1/charges",
+      "why": "The charges endpoint has been replaced by the payments endpoint; v1 is deprecated and will be shut down 31 Oct 2026.",
+      "source": "http://127.0.0.1:8765/docs/migration"
+    },
+    {
+      "old": "GET /v1/charges/{id}",
+      "new": "GET /v2/payments/{id}",
+      "detect": "v1/charges/",
+      "why": "The read-charge endpoint has been replaced by the read-payment endpoint under /v2/payments.",
+      "source": "http://127.0.0.1:8765/docs/migration"
+    },
+    {
+      "old": "body = {\"amount\": \"24.98\", ...}  # decimal string in major currency units",
+      "new": "body = {\"amount_cents\": 2498, ...}  # integer in minor currency units",
+      "detect": "[\"']amount[\"']\\s*:\\s*[\"'][\\d]+\\.[\\d]+[\"']",
+      "why": "`amount` (decimal string, major units) is replaced by `amount_cents` (integer, minor units); sending the old field causes a 422 because unknown fields are rejected.",
+      "source": "http://127.0.0.1:8765/docs/migration"
+    },
+    {
+      "old": "body = {\"currency\": \"usd\", ...}  # lowercase currency code",
+      "new": "body = {\"currency\": \"USD\", ...}  # uppercase ISO 4217 code",
+      "detect": "[\"']currency[\"']\\s*:\\s*[\"'][a-z]{3}[\"']",
+      "why": "The v2 API requires currency codes to be uppercase ISO 4217; lowercase values fail schema validation (pattern `^[A-Z]{3}$`).",
+      "source": "http://127.0.0.1:8765/v2/openapi.json"
+    },
+    {
+      "old": "body = {\"order_id\": \"ord_1\", ...}",
+      "new": "body = {\"reference\": \"ord_1\", ...}",
+      "detect": "[\"']order_id[\"']",
+      "why": "`order_id` has been renamed to `reference`; sending `order_id` causes a 422 because v2 rejects unknown fields.",
+      "source": "http://127.0.0.1:8765/docs/migration"
+    },
+    {
+      "old": "requests.post(url, json=body)  # no Idempotency-Key header",
+      "new": "requests.post(url, json=body, headers={\"Idempotency-Key\": idempotency_key})",
+      "detect": "",
+      "why": "`Idempotency-Key` is a required header on POST /v2/payments; omitting it returns 400 and risks double-charging on retries.",
+      "source": "http://127.0.0.1:8765/docs/migration"
+    },
+    {
+      "old": "charge_id = response.json()[\"id\"]",
+      "new": "payment_id = response.json()[\"payment\"][\"id\"]",
+      "detect": "response\\.json\\(\\)\\[[\"']id[\"']\\]",
+      "why": "v2 wraps the returned object under a `payment` key; accessing the top-level `id` key raises a KeyError.",
+      "source": "http://127.0.0.1:8765/docs/migration"
+    },
+    {
+      "old": "status = response.json()[\"status\"]  # e.g. 'succeeded' or 'failed'",
+      "new": "state = response.json()[\"payment\"][\"state\"]  # e.g. 'captured' or 'declined'",
+      "detect": "response\\.json\\(\\)\\[[\"']status[\"']\\]",
+      "why": "v2 replaces the `status` field with `state`, nested under `payment`; the enum values also changed (`succeeded`\u2192`captured`, `failed`\u2192`declined`).",
+      "source": "http://127.0.0.1:8765/docs/migration"
+    },
+    {
+      "old": "if status == \"succeeded\":",
+      "new": "if state == \"captured\":",
+      "detect": "[\"']succeeded[\"']",
+      "why": "The v1 success status value `succeeded` is now `captured` in v2.",
+      "source": "http://127.0.0.1:8765/docs/migration"
+    },
+    {
+      "old": "if status == \"failed\":",
+      "new": "if state == \"declined\":",
+      "detect": "[\"']failed[\"']",
+      "why": "The v1 failure status value `failed` is now `declined` in v2.",
+      "source": "http://127.0.0.1:8765/docs/migration"
+    },
+    {
+      "old": "amount = response.json()[\"amount\"]  # decimal string e.g. '24.98'",
+      "new": "amount_cents = response.json()[\"payment\"][\"amount_cents\"]  # integer e.g. 2498",
+      "detect": "response\\.json\\(\\)\\[[\"']amount[\"']\\]",
+      "why": "The response field `amount` (decimal string) is replaced by `amount_cents` (integer) nested under `payment`.",
+      "source": "http://127.0.0.1:8765/v2/openapi.json"
+    },
+    {
+      "old": "order_id = response.json()[\"order_id\"]",
+      "new": "reference = response.json()[\"payment\"][\"reference\"]",
+      "detect": "response\\.json\\(\\)\\[[\"']order_id[\"']\\]",
+      "why": "`order_id` in the response is renamed `reference` in v2, and is nested under the `payment` wrapper object.",
+      "source": "http://127.0.0.1:8765/docs/migration"
+    },
+    {
+      "old": "# Passing extra/unknown fields in the request body\nbody = {\"amount_cents\": 2498, \"currency\": \"USD\", \"reference\": \"ord_1\", \"extra_field\": \"value\"}",
+      "new": "# Only send the three defined fields: amount_cents, currency, reference\nbody = {\"amount_cents\": 2498, \"currency\": \"USD\", \"reference\": \"ord_1\"}",
+      "detect": "",
+      "why": "v2 sets `additionalProperties: false`; any unknown field in the request body causes a 422 Unprocessable Entity response.",
+      "source": "http://127.0.0.1:8765/v2/openapi.json"
+    }
+  ]
+}

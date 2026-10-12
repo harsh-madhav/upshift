@@ -149,3 +149,10 @@ def test_failure_digest_drops_warnings_summary():
            "FAILED tests/test_a.py::t - boom\n1 failed, 3 warnings in 0.1s\n")
     digest = failure_digest(out)
     assert "DeprecationWarning" not in digest and "short test summary" in digest and "1 failed" in digest
+
+
+def test_test_files_cannot_be_edited(workspace):
+    from upshift.agent import edit_file
+    with pytest.raises(ValueError, match="test file"):
+        edit_file(workspace, "tests/test_calc.py", "== 5", "== -1")
+    assert "== 5" in (workspace.repo / "tests" / "test_calc.py").read_text()

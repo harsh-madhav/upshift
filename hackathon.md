@@ -175,9 +175,38 @@ Fixes from those traces:
 Next targets from this run: 141K input tokens for one fix round is high (the playbook in the system prompt plus a
 resent history), and neatlogs shows $0 for proxy model names.
 
+### 2026-10-12: API drift
+`upshift watch --repo R [--neatlogs] [--logs PATH] --after-env KEY=VALUE`:
+- Signals: each third-party call the app logs (`api, method, url, status, Deprecation, Sunset, Link`). The demo
+  shop's acme client writes them to `logs/app.log` and to its neatlogs span input/output.
+- Detection over the neatlogs MCP: `search_traces`, then `get_trace_context` for each hit, reading the spans'
+  outputs. Learned while building it: keyword search splits on hyphens (`successor-version` finds nothing,
+  `successor` does), doesn't apply `created_after` (filtered on our side), only indexes span input/output (not
+  custom attributes), and new traces take ~5-10 minutes to become searchable, so the local log covers the gap.
+- Calls grouped by API and endpoint (`GET /v1/charges/{id}`), with the sunset date and the successor link.
+- Research: the provider's migration guide and the old/new OpenAPI specs described operation by operation.
+- "Bump": tests run with `--after-env ACME_SANDBOX_MODE=sunset`, so v1 calls answer 410 as they will after
+  the shutdown. The fix loop then has real failures.
+
+Demo: acme's sandbox (`tests/acme_sandbox.py`, modes ok / deprecating / sunset; v2 has `amount_cents`, an
+`Idempotency-Key` header, upper-case currency, `reference`, a nested response, and rejects unknown fields), the
+shop's `shop/payments.py` on v1, `checkout()`, 4 payment tests (30 in total), and `scripts/traffic.py`.
+
+Runs with `claude-sonnet-4.6` (the neatHack proxy), all ending 30/30 with the sandbox in sunset mode:
+
+| Run | Trace | What happened | Tokens |
+|---|---|---|---|
+| `20261012-133629-api-acme` | | Round 1 migrated correctly and kept the app's `status: "succeeded"` contract with a small translation. **Then the cleanup round removed it, changed the contract to v2's `state`, and edited `tests/test_payments.py` to match.** The prompt said not to touch tests; nothing enforced it | 119K |
+| `20261012-133857-api-acme` | `3b2e34a9be67dfcc05562f499b2b961f` | Fix: `edit_file` now refuses test files. Only `shop/payments.py` changed, contract kept. But the trace shows 433K tokens and 7 errored spans: the cleanup rounds kept trying to "migrate" the translation the tests lock, and hit the guard 7 times | 433K |
+| `20261012-134358-api-acme` | `f7443ab5ef7d0a58337794e2681dbb89` | Fix: cleanup stops after a round that removes nothing. Same correct change, 100 s | 162K (−63%) |
+
+The migration (only `shop/payments.py`): `/v2/payments`, `amount_cents` from the Decimal amount, `"USD"`,
+`reference`, a fresh `Idempotency-Key` per call, unwrapping `payment`, and mapping `state: captured` back to
+`status: succeeded` so the rest of the app is unchanged.
+
 Next:
 - Repeat v0/v1 on more repos (real OSS projects) to separate the improvement from run-to-run variance.
-- API drift.
+- Dependabot alerts as a second vulnerability source. API drift needs a per-provider sandbox switch (`--after-env`).
 
 ## Demo
 Not recorded yet.

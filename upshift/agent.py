@@ -9,7 +9,7 @@ from .llm import LLMError, tool_result, tool_spec, tool_uses
 from .playbook import render as render_playbook
 from .research import Fetcher
 from .state import RunState
-from .workspace import TestRun, Workspace, tail
+from .workspace import TestRun, Workspace, is_test_file, tail
 
 MAX_STEPS_PER_ROUND = 30
 MAX_STALLS = 2
@@ -25,8 +25,9 @@ Migrate each one to its replacement from the playbook. Keep behaviour identical,
 such as by_alias, include, exclude and update. Don't touch tests. Run the tests, then call finish_round."""
 
 SYSTEM = """You are upgrading {subject} from {old} to {new} in the repository at the
-working directory. The new version is already installed and pinned. Your job is to change the code so the
-test suite passes again. Tests that were already failing before the upgrade are not your concern.
+working directory. Your job is to change the code so the test suite passes again. Tests that were already failing before the upgrade are not your concern.
+
+{setting}
 
 Migration playbook (researched from the official docs, release notes and an API diff):
 {playbook}
@@ -73,8 +74,15 @@ class FixLoop:
         self.max_rounds = max_rounds
         self.fetch = Fetcher(cap=20000)
         self.baseline = set(state.baseline_failing)
-        subject = "the project's Python version" if state.kind == "python" else f"the Python package {state.package}"
-        self.system = SYSTEM.format(subject=subject, old=state.old, new=state.new, playbook=render_playbook(playbook))
+        subject, setting = {
+            "python": ("the project's Python version", "The new Python is installed and the version pins are updated."),
+            "api": (f"the code's use of the third-party {state.package} API",
+                    f"{state.package} {state.old} is being shut down. The test sandbox already behaves as after the "
+                    f"shutdown ({state.old} calls fail), so move every call to {state.new}, keeping what the "
+                    "functions return to the rest of the app unchanged."),
+        }.get(state.kind, (f"the Python package {state.package}", "The new version is already installed and pinned."))
+        self.system = SYSTEM.format(subject=subject, setting=setting, old=state.old, new=state.new,
+                                    playbook=render_playbook(playbook))
 
     def new_failures(self, run: TestRun) -> set[str]:
         return run.failing - self.baseline
@@ -188,6 +196,10 @@ class FixLoop:
                 span.set_attribute("upshift.input_tokens", self.llm.input_tokens - tokens_before)
             left = now_left
             save()
+            if outcome != "progress":
+                # what's left is locked by the tests (e.g. a compatibility layer the app's contract needs);
+                # in the API run's trace a second try burned 300K tokens and 7 refused test edits for nothing
+                return
 
     def converse(self, prompt: str) -> str:
         messages = [{"role": "user", "content": [{"text": prompt}]}]
@@ -276,6 +288,11 @@ def compact(messages: list[dict]) -> None:
 @neatlogs.span(kind="TOOL", tool_name="edit_file")
 def edit_file(ws: Workspace, path: str, old: str, new: str) -> str:
     target = ws.resolve(path)
+    if is_test_file(target.relative_to(ws.repo.resolve())):
+        # the tests are the spec the upgrade is checked against; a prompt rule alone was not enough
+        tracing.annotate(failure_class="test_edit_refused", recovery="returned_to_model")
+        raise ValueError(f"{path} is a test file. Tests define the behaviour to keep and must not change; "
+                         "change the application code instead.")
     text = target.read_text()
     count = text.count(old)
     if count != 1:

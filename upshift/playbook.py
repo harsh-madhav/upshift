@@ -19,7 +19,9 @@ You get the package, the old and new versions, the project's doc and changelog p
 notes between the versions, and an API diff computed by installing both versions and comparing their
 public symbols. The API diff is ground truth for what was removed or changed. For an upgrade of Python
 itself the package is "python": the docs are the What's New sections and the API diff compares the standard
-library under both interpreters.
+library under both interpreters. For a third-party HTTP API the package is the API's name: the docs are the
+provider's migration guide and the API diff lists the old and new OpenAPI operations; write rules for the
+client code (endpoints, request fields, headers, response shape), with detect regexes that match old calls.
 
 Read what you were given. If you need the official migration guide or a specific doc page, use
 fetch_url (follow links you saw, don't guess random URLs). Each page is returned whole, so fetch a

@@ -1,6 +1,7 @@
 import json
 from decimal import Decimal
 
+from . import payments
 from .models import Customer, Order
 
 
@@ -45,3 +46,8 @@ def customer_from_row(row) -> Customer:
 
 def export_orders(orders) -> str:
     return json.dumps([json.loads(order_to_json(order)) for order in orders])
+
+
+def checkout(order: Order) -> dict:
+    """Charge the order's total. Returns the payment as {"id", "status", "amount"}."""
+    return payments.charge(order.id, order_total(order))

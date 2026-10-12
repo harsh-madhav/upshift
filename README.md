@@ -12,8 +12,8 @@ Built for #neatHack with neatlogs, Entire and cfo.ai. Bring your own model key.
 
 ## Status
 
-Package bumps, vulnerability scans and Python version upgrades work end to end. Third-party API drift
-comes next.
+All three triggers work end to end: vulnerability scans, requested upgrades (a package or Python itself) and
+third-party API drift seen in production traces.
 
 ## Run it
 
@@ -33,6 +33,8 @@ uv run upshift bump --repo demo/shop_app --package pydantic --to 2 --dry-run
 uv run upshift bump --repo demo/shop_app --package pydantic --to 2
 uv run upshift scan --repo demo/shop_app                     # find known vulnerabilities and fix each one
 uv run upshift python --repo demo/shop_app --to 3.12         # move to a newer Python and fix what breaks
+uv run upshift watch --repo demo/shop_app --neatlogs --logs logs/app.log \
+    --after-env ACME_SANDBOX_MODE=sunset                     # migrate API calls the provider is retiring
 uv run upshift resume <run-id>     # continue a crashed or killed run
 ```
 
@@ -81,6 +83,23 @@ breaks the code goes through research and the fix loop like any other upgrade.
 breaks. Its research is the Removed, Porting and Deprecated sections of each What's New page in range, plus a diff
 of the standard library under both interpreters. If a pinned dependency has no release for the new Python, the job
 stops and names it, so it can be upgraded first with `upshift bump`.
+
+`upshift watch` looks for third-party API calls the provider is retiring: responses with a `Deprecation` or
+`Sunset` header, or 410 Gone. It searches the app's neatlogs traces over the neatlogs MCP server and/or the app's
+own call log, groups the calls by API, and follows the `Link: rel="successor-version"` header. Research is the
+provider's migration guide plus the old and new OpenAPI specs side by side. Tests then run with `--after-env`, an
+environment that makes the provider's sandbox behave as after the shutdown, so the fix loop has real failures to
+fix.
+
+### The API drift demo
+`shop_app` charges orders through acme's v1 API; acme's sandbox (`demo/shop_app/tests/acme_sandbox.py`) says v1
+shuts down on 31 Oct 2026 and v2 replaces it.
+
+```bash
+python3 demo/shop_app/tests/acme_sandbox.py --port 8765 --mode deprecating &   # "production" acme
+ACME_BASE_URL=http://127.0.0.1:8765 python demo/shop_app/scripts/traffic.py   # needs neatlogs + requests
+uv run upshift watch --repo demo/shop_app --neatlogs --logs logs/app.log --after-env ACME_SANDBOX_MODE=sunset
+```
 
 ## Tests
 

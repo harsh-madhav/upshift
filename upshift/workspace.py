@@ -58,11 +58,12 @@ def parse_pytest(exit_code: int, output: str) -> TestRun:
 
 
 class Workspace:
-    def __init__(self, root: Path, python: str = "3.12"):
+    def __init__(self, root: Path, python: str = "3.12", env: dict | None = None):
         self.root = Path(root)             # the run directory
         self.repo = self.root / "repo"     # working copy of the target repo
         self.venv = self.root / "venv"
         self.python = python
+        self.env = env or {}               # extra environment for test runs
 
     @property
     def py(self) -> str:
@@ -177,7 +178,7 @@ class Workspace:
         if selector:
             cmd += selector.split()
         try:
-            out = sh(cmd, cwd=self.repo, timeout=1200)
+            out = sh(cmd, cwd=self.repo, timeout=1200, env=self.env)
         except subprocess.TimeoutExpired:
             return TestRun(-1, {"<timeout>"}, "pytest timed out after 1200s", False)
         return parse_pytest(out.returncode, out.stdout + out.stderr)
@@ -194,6 +195,10 @@ class Workspace:
         for path in self.repo.rglob("*"):
             if path.is_file() and not any(part in SKIP_DIRS for part in path.relative_to(self.repo).parts):
                 yield path
+
+
+def is_test_file(rel: Path) -> bool:
+    return "tests" in rel.parts or "test" in rel.parts or rel.name.startswith("test_") or rel.name == "conftest.py"
 
 
 # --- requirement parsing helpers ---------------------------------------------
