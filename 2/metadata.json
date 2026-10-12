@@ -1,0 +1,184 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4QTZCN9J8WW9TBXEWM49VA6",
+  "session_id": "94eed7b5-9c2e-4530-9732-858cf448f6a6",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-12T10:36:53.330465Z",
+  "branch": "main",
+  "checkpoints_count": 9,
+  "save_step_count": 9,
+  "files_touched": [
+    "README.md",
+    "business/cfo-inputs.md",
+    "hackathon.md",
+    "tests/test_fix_loop.py",
+    "upshift/agent.py",
+    "upshift/pipeline.py",
+    "upshift/playbook.py",
+    "upshift/workspace.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "e969e193c051",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 74,
+    "cache_creation_tokens": 70872,
+    "cache_read_tokens": 2918497,
+    "output_tokens": 14286,
+    "api_call_count": 37
+  },
+  "session_metrics": {
+    "turn_count": 9
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-12T10:36:53.310649Z",
+    "agent_lines": 183,
+    "agent_removed": 37,
+    "human_added": 1792,
+    "human_modified": 35,
+    "human_removed": 0,
+    "total_committed": 2010,
+    "total_lines_changed": 2047,
+    "agent_percentage": 10.74743527112848,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1251,
+      "user_lines_removed": 21,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "business/cfo-inputs.md": 70,
+        "demo/shop_app/.gitignore": 1,
+        "demo/shop_app/scripts/traffic.py": 43,
+        "demo/shop_app/shop/orders.py": 6,
+        "demo/shop_app/shop/payments.py": 62,
+        "demo/shop_app/tests/acme_sandbox.py": 196,
+        "demo/shop_app/tests/conftest.py": 14,
+        "demo/shop_app/tests/test_payments.py": 33,
+        "docs/index.html": 343,
+        "playbooks/acme-v1-v2.json": 99,
+        "tests/test_drift.py": 45,
+        "tests/test_fix_loop.py": 7,
+        "upshift/agent.py": 18,
+        "upshift/cli.py": 25,
+        "upshift/drift.py": 133,
+        "upshift/graph.py": 6,
+        "upshift/neatlogs_mcp.py": 41,
+        "upshift/pipeline.py": 31,
+        "upshift/playbook.py": 3,
+        "upshift/research.py": 66,
+        "upshift/state.py": 2,
+        "upshift/workspace.py": 7
+      },
+      "user_removed_per_file": {
+        "upshift/agent.py": 5,
+        "upshift/cli.py": 2,
+        "upshift/graph.py": 4,
+        "upshift/pipeline.py": 7,
+        "upshift/playbook.py": 1,
+        "upshift/workspace.py": 2
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 2,
+      "user_lines_removed": 4,
+      "agent_lines_added": 1251,
+      "agent_lines_removed": 21,
+      "user_added_per_file": {
+        "business/cfo-inputs.md": 2
+      },
+      "user_removed_per_file": {
+        "business/cfo-inputs.md": 4
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 2,
+      "user_lines_removed": 4,
+      "agent_lines_added": 1305,
+      "agent_lines_removed": 24,
+      "user_added_per_file": {
+        "business/cfo-inputs.md": 2
+      },
+      "user_removed_per_file": {
+        "business/cfo-inputs.md": 4
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 584,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "business/cfo-inputs.md": 71,
+        "docs/index.html": 513
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 586,
+      "agent_lines_removed": 1
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 586,
+      "agent_lines_removed": 1
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 586,
+      "agent_lines_removed": 1
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 947,
+      "user_lines_removed": 5,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "business/cfo-inputs.md": 71,
+        "docs/index.html": 546,
+        "hackathon.md": 3,
+        "playbooks/pydantic-1.10.9-2.14.1.json": 260,
+        "tests/test_fix_loop.py": 20,
+        "tests/test_tracing.py": 21,
+        "upshift/agent.py": 12,
+        "upshift/pipeline.py": 6,
+        "upshift/playbook.py": 1,
+        "upshift/workspace.py": 7
+      },
+      "user_removed_per_file": {
+        "hackathon.md": 2,
+        "upshift/agent.py": 1,
+        "upshift/playbook.py": 1,
+        "upshift/workspace.py": 1
+      }
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 292,
+      "user_lines_removed": 7,
+      "agent_lines_added": 662,
+      "agent_lines_removed": 5,
+      "user_added_per_file": {
+        "docs/index.html": 32,
+        "playbooks/pydantic-1.10.9-2.14.1.json": 260
+      },
+      "user_removed_per_file": {
+        "docs/index.html": 7
+      }
+    }
+  ]
+}

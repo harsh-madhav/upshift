@@ -1,0 +1,33 @@
+what needs to be done with cfo-inputs.md?
+
+---
+
+done what else now?
+
+---
+
+right bootstrapped how do get the cfo.ai link?
+
+---
+
+here is the link https://app.cfo.ai/s/XZ-zIQJ4prmIXP0X
+
+---
+
+here is the link https://app.cfo.ai/s/iwDbJTvhKsiY6aYl
+
+---
+
+did we add the api drift functionality in the landing page?
+
+---
+
+yes update it
+
+---
+
+what is needed here - business/cfo-inputs.md still calls drift "(in progress)". The cfo.ai plan is already built from that file, so I left it alone.?
+
+---
+
+change it

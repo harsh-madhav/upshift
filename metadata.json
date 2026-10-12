@@ -3,7 +3,7 @@
   "checkpoint_id": "01M4QTZCN9J8WW9TBXEWM49VA6",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 26,
+  "checkpoints_count": 35,
   "files_touched": [
     "README.md",
     "business/cfo-inputs.md",
@@ -34,14 +34,21 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 502,
-    "cache_creation_tokens": 965867,
-    "cache_read_tokens": 49134212,
-    "output_tokens": 210233,
-    "api_call_count": 242,
+    "input_tokens": 576,
+    "cache_creation_tokens": 1036739,
+    "cache_read_tokens": 52052709,
+    "output_tokens": 224519,
+    "api_call_count": 279,
     "subagent_tokens": {
       "input_tokens": 14,
       "cache_creation_tokens": 67291,
