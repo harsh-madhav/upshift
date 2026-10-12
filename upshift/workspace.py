@@ -79,7 +79,17 @@ class Workspace:
     def clone(self, source: str, branch: str) -> None:
         src = Path(source).expanduser()
         if src.exists() and not (src / ".git").exists():
-            shutil.copytree(src, self.repo, ignore=shutil.ignore_patterns(*SKIP_DIRS))
+            tracked = sh(["git", "ls-files", "-z"], cwd=src)
+            if tracked.returncode == 0:
+                self.repo.mkdir(parents=True, exist_ok=True)
+                # a folder inside a git repo (a monorepo project): copy only tracked files, never local
+                # .env files or other untracked secrets the agent could read and send to the model
+                for rel in filter(None, tracked.stdout.split("\0")):
+                    if (src / rel).is_file():
+                        (self.repo / rel).parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(src / rel, self.repo / rel)
+            else:
+                shutil.copytree(src, self.repo, ignore=shutil.ignore_patterns(*SKIP_DIRS))
             self.git("init", "-q")
             self.git("add", "-A")
             self.git("commit", "-q", "-m", "upshift: baseline snapshot")
@@ -105,6 +115,25 @@ class Workspace:
             if out.returncode != 0:
                 raise RuntimeError(f"uv venv failed: {out.stderr.strip()}")
         pip = ["uv", "pip", "install", "-q", "--python", self.py]
+        lockfile, pins = lock_pins(self.repo)
+        if pins:
+            # resolve at the locked versions (poetry.lock or uv.lock): the baseline must test what is shipped,
+            # not whatever is newest today. Names locked at several versions are left to the resolver.
+            constraints = self.root / "lock-constraints.txt"
+            constraints.write_text("".join(f"{n}=={v[0]}\n" for n, v in sorted(pins.items()) if len(v) == 1))
+            pip += ["-c", str(constraints)]
+            log.append(f"constrained to {lockfile}: {len(pins)} packages")
+        if (self.repo / "uv.lock").is_file():
+            # install the locked versions first, so the baseline and any audit see what is actually deployed
+            out = sh(["uv", "export", "--frozen", "--no-hashes", "--all-extras", "--no-emit-project", "-q"], cwd=self.repo)
+            if out.returncode == 0:
+                locked = self.root / "locked.txt"
+                locked.write_text("".join(line + "\n" for line in out.stdout.splitlines()
+                                          if line.strip() and not line.lstrip().startswith(("-e", ".", "#"))))
+                out = sh([*pip, "-r", str(locked)], cwd=self.repo)
+                log.append(f"uv.lock: exit {out.returncode} {out.stderr.strip()[-500:]}")
+                if out.returncode != 0:
+                    raise RuntimeError(f"installing the locked versions failed:\n{tail(out.stderr, 3000)}")
         for req in self.requirement_files():
             out = sh([*pip, "-r", str(req)], cwd=self.repo)
             log.append(f"{req.name}: exit {out.returncode} {out.stderr.strip()[-500:]}")
@@ -118,8 +147,9 @@ class Workspace:
                     break
             else:
                 # legacy setup.py files often import the package (for its version) and can't be built in
-                # isolation; with requirement files already installed, run from source like `setup.py develop`
-                if not self.requirement_files():
+                # isolation, and uv apps (`package = false`) aren't packages at all; with the dependencies already
+                # installed from requirement files or uv.lock, run from source like `setup.py develop`
+                if not (self.requirement_files() or (self.root / "locked.txt").is_file()):
                     raise RuntimeError(f"installing the project failed:\n{tail(out.stderr, 3000)}")
                 site = sh([self.py, "-c", "import sysconfig; print(sysconfig.get_paths()['purelib'])"])
                 Path(site.stdout.strip(), "_upshift_project.pth").write_text(f"{self.repo.resolve()}\n")
@@ -153,6 +183,22 @@ class Workspace:
             if path.exists() and _find_requirement(path.read_text(), package):
                 found.append(path)
         return found
+
+    @neatlogs.span(kind="TOOL", tool_name="update_lock")
+    def update_lock(self, package: str) -> dict[str, tuple] | None:
+        """Re-lock one package in uv.lock or poetry.lock. Returns {package: (old, new)} for every locked version
+        that moved (a stale lock can move more than the one package), or None when the project has no lockfile."""
+        lockfile, before = lock_pins(self.repo)
+        if not lockfile:
+            return None
+        cmd = (["uv", "lock", "--upgrade-package", package] if lockfile == "uv.lock" else
+               ["uvx", "--from", "poetry>=2", "poetry", "update", "--lock", "--no-interaction", package])
+        out = sh(cmd, cwd=self.repo, timeout=1200)
+        if out.returncode != 0:
+            raise RuntimeError(f"updating {lockfile} failed:\n{tail(out.stderr + out.stdout, 3000)}")
+        _, after = lock_pins(self.repo)
+        return {name: (", ".join(before.get(name, [])) or None, ", ".join(after.get(name, [])) or None)
+                for name in sorted(set(before) | set(after)) if before.get(name) != after.get(name)}
 
     @neatlogs.span(kind="TOOL", tool_name="set_version")
     def set_version(self, package: str, version: str) -> str:
@@ -204,6 +250,33 @@ class Workspace:
         for path in self.repo.rglob("*"):
             if path.is_file() and not any(part in SKIP_DIRS for part in path.relative_to(self.repo).parts):
                 yield path
+
+
+LOCKFILES = ("uv.lock", "poetry.lock")
+
+
+def lock_pins(repo: Path) -> tuple[str, dict[str, list[str]]]:
+    """(lockfile name, {canonical package name: [versions]}) from uv.lock or poetry.lock. A name can be locked
+    at several versions (one per Python range). Local, git and URL sources are left out."""
+    for name in LOCKFILES:
+        path = Path(repo) / name
+        if not path.is_file():
+            continue
+        try:
+            data = tomllib.loads(path.read_text())
+        except (tomllib.TOMLDecodeError, UnicodeDecodeError):
+            return name, {}
+        pins: dict[str, list[str]] = {}
+        for pkg in data.get("package", []):
+            source = pkg.get("source", {})
+            if not pkg.get("version") or source.get("type") in ("directory", "git", "file", "url") or any(
+                    k in source for k in ("editable", "virtual", "directory", "path", "git")):
+                continue
+            versions = pins.setdefault(canonicalize_name(pkg["name"]), [])
+            if pkg["version"] not in versions:
+                versions.append(pkg["version"])
+        return name, pins
+    return "", {}
 
 
 def is_test_file(rel: Path) -> bool:

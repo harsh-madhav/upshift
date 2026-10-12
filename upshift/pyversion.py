@@ -19,6 +19,25 @@ def detect(repo: str | Path) -> str | None:
     return None
 
 
+def default_python(repo: str | Path) -> str:
+    """The Python to build the project's venv with: .python-version, else the lowest minor version that
+    pyproject's requires-python allows (a monorepo backend can need 3.13 while the default is 3.12), else 3.12."""
+    if version := detect(repo):
+        return version
+    pyproject = Path(repo).expanduser() / "pyproject.toml"
+    if pyproject.is_file():
+        match = re.search(r'requires-python\s*=\s*"([^"]*)"', pyproject.read_text())
+        try:
+            allowed = SpecifierSet(match.group(1)) if match else None
+        except InvalidSpecifier:
+            allowed = None
+        if allowed:
+            for minor in range(9, 16):
+                if allowed.contains(Version(f"3.{minor}.0"), prereleases=False) or allowed.contains(Version(f"3.{minor}.99")):
+                    return f"3.{minor}"
+    return "3.12"
+
+
 def retarget(repo: Path, old: str, new: str) -> list[str]:
     """Move the repo's Python version pins from `old` to `new`. Returns the files changed.
 

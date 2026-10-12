@@ -250,6 +250,22 @@ What can't be fixed without a person: 19 of the 44 tests contain v1 code themsel
 definition). Upshift doesn't edit tests, so the most it can reach is the 25 tests in `test_validator.py`, which also
 pin v1's error format (`'field required'`, `value_error.missing`): the library's public contract.
 
+### 2026-10-12: scanning real lockfiles
+On a large open-source Python project (820 tests) `upshift scan` said "nothing to fix". It was wrong: it had
+installed the latest compatible versions and audited those, while the project ships what its committed `poetry.lock` pins.
+Auditing the lock found dozens of vulnerable pinned packages.
+
+| Problem | Fix |
+|---|---|
+| A repo whose Python projects live in subfolders was reported clean (only pytest was installed and audited) | `scan` stops and lists the projects it found instead of a false all-clear |
+| `.python-version` missing in the project; `requires-python` needs 3.13 | the default Python comes from `.python-version`, else the lowest version `requires-python` allows |
+| Installs ignored `poetry.lock` / `uv.lock`, so tests and audit ran on versions nobody ships | installs are constrained to the locked versions; the audit covers every locked package (optional extras too) and says which ones the tests can't exercise |
+| The fix for a transitive package changed nothing on disk ("upgraded in the environment only"), so verification correctly reported 0/2 advisories fixed | the bump re-locks that one package (`poetry update --lock` / `uv lock --upgrade-package`), re-installs from the new lock and tests that. Every locked version that moved is listed in the report |
+| A folder inside a git repo was copied with its untracked files (local `.env` files included) | only git-tracked files are copied |
+
+Result: `upshift scan --package requests` on that project → `poetry.lock` re-locked, 2/2 advisories fixed, 820 passing,
+0 new failures, no model calls. `scan --package X` fixes one finding while still reporting all of them.
+
 ## Demo
 Not recorded yet.
 

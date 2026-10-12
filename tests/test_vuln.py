@@ -45,3 +45,16 @@ def test_transitive_fix_is_declared_in_requirements(tmp_path, monkeypatch):
     monkeypatch.setattr(workspace, "sh", lambda *a, **k: type("Done", (), {"returncode": 0, "stderr": ""})())
     ws.set_version("urllib3", "2.5.0")
     assert (ws.repo / "requirements.txt").read_text() == "requests==2.31.0\nurllib3>=2.5.0\n"
+
+
+def test_monorepo_root_is_not_reported_clean(tmp_path):
+    # a monorepo: projects live in subfolders; the root installed only pytest and the scan said "nothing to fix"
+    from upshift.vuln import declares_dependencies, projects_below
+    (tmp_path / "backend").mkdir()
+    (tmp_path / "backend" / "pyproject.toml").write_text("[project]\nname = 'b'\n")
+    (tmp_path / "tools" / "mcp").mkdir(parents=True)
+    (tmp_path / "tools" / "mcp" / "requirements.txt").write_text("httpx\n")
+    assert not declares_dependencies(tmp_path)
+    assert projects_below(tmp_path) == ["backend", "tools/mcp"]
+    (tmp_path / "requirements-dev.txt").write_text("pytest\n")
+    assert declares_dependencies(tmp_path)

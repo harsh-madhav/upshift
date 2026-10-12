@@ -38,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     bump.add_argument("--repo", required=True, help="local path or git URL")
     bump.add_argument("--package", required=True)
     bump.add_argument("--to", help="target version or prefix (default: latest stable)")
-    bump.add_argument("--python", help="Python for the project's venv (default: its .python-version, else 3.12)")
+    bump.add_argument("--python", help="Python for the project's venv (default: its .python-version, else what pyproject's requires-python allows, else 3.12)")
     bump.add_argument("--fresh-research", action="store_true",
                       help="ignore a cached playbook and research the upgrade again")
     bump.add_argument("--dry-run", action="store_true",
@@ -46,7 +46,8 @@ def main(argv: list[str] | None = None) -> int:
 
     scan = sub.add_parser("scan", help="audit dependencies for known vulnerabilities and fix each one")
     scan.add_argument("--repo", required=True, help="local path or git URL")
-    scan.add_argument("--python", help="Python for the project's venv (default: its .python-version, else 3.12)")
+    scan.add_argument("--python", help="Python for the project's venv (default: its .python-version, else what pyproject's requires-python allows, else 3.12)")
+    scan.add_argument("--package", help="only fix this package (the scan still reports everything)")
     scan.add_argument("--dry-run", action="store_true",
                       help="no model calls: fixes that break nothing still complete; others stop after research")
 
@@ -66,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     watch.add_argument("--since", type=int, default=1440, help="minutes of traces to search (default 1440)")
     watch.add_argument("--after-env", action="append", default=[], metavar="KEY=VALUE",
                        help="test environment that reproduces the API after the change, e.g. a sandbox mode")
-    watch.add_argument("--python", help="Python for the project's venv (default: its .python-version, else 3.12)")
+    watch.add_argument("--python", help="Python for the project's venv (default: its .python-version, else what pyproject's requires-python allows, else 3.12)")
     watch.add_argument("--fresh-research", action="store_true")
     watch.add_argument("--dry-run", action="store_true",
                        help="no model calls: detect, set up, baseline, test as after the change, show what breaks")
@@ -79,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
     stamp = time.strftime("%Y%m%d-%H%M%S")
     jobs = []
     if args.command in ("bump", "scan", "watch"):
-        args.python = args.python or pyversion.detect(args.repo) or "3.12"
+        args.python = args.python or pyversion.default_python(args.repo)
     if args.command == "python":
         state = RunState(run_id=f"{stamp}-python-{args.to}", kind="python", source=args.repo, package="python",
                          wanted=args.to, python=args.from_version or "", fresh_research=args.fresh_research)
@@ -102,7 +103,7 @@ def main(argv: list[str] | None = None) -> int:
     tracing.init(tags)
     try:
         if args.command == "scan":
-            jobs = vuln.scan(args.repo, args.python, stamp)
+            jobs = vuln.scan(args.repo, args.python, stamp, args.package)
             if not jobs:
                 print("[upshift] nothing to fix")
         if args.command == "watch":

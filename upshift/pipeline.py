@@ -131,7 +131,18 @@ def bump(state: RunState, ws: Workspace, llm, dry_run: bool) -> None:
         tracing.annotate(after_env=", ".join(f"{k}={v}" for k, v in state.after_env.items()) or "none")
     else:
         ws.set_version(state.package, state.new)
-        if not ws.pin_files(state.package):
+        declared = ws.pin_files(state.package)
+        try:
+            moved = ws.update_lock(state.package)
+        except RuntimeError as exc:
+            raise Stop(str(exc)) from exc
+        if moved is not None:
+            # the lockfile is what ships: re-install from it so the tests run exactly the new locked versions
+            ws.install()
+            state.notes.append("Lockfile updated: " + ("; ".join(f"{n} {o or '(none)'} -> {v or '(removed)'}"
+                                                                 for n, (o, v) in moved.items()) or "no changes"))
+            tracing.annotate(lock_changes=len(moved))
+        elif not declared:
             state.notes.append(f"{state.package} is not declared in a requirements file or pyproject.toml; "
                                "it was upgraded in the environment only.")
     ws.git("add", "-A")

@@ -46,3 +46,20 @@ def test_fetcher_treats_anchors_as_the_same_page(monkeypatch):
     assert "Already fetched" in fetch("https://docs.example.com/migration/#validators")
     assert "Already fetched" in fetch("https://docs.example.com/changelog")
     assert calls == ["https://docs.example.com/migration"] and fetch.duplicates == 2
+
+
+def test_lock_pins_reads_poetry_and_uv_locks(tmp_path):
+    # a project that ships poetry.lock: auditing a fresh install instead of the lock missed 36 vulnerable packages
+    from upshift.workspace import lock_pins
+    (tmp_path / "poetry.lock").write_text(
+        '[[package]]\nname = "Requests"\nversion = "2.32.3"\n\n'
+        '[[package]]\nname = "torch"\nversion = "2.7.1"\n\n[[package]]\nname = "torch"\nversion = "2.11.0"\n\n'
+        '[[package]]\nname = "local-lib"\nversion = "0.1.0"\n[package.source]\ntype = "directory"\nurl = "libs/x"\n')
+    assert lock_pins(tmp_path) == ("poetry.lock", {"requests": ["2.32.3"], "torch": ["2.7.1", "2.11.0"]})
+    (tmp_path / "poetry.lock").unlink()
+    (tmp_path / "uv.lock").write_text(
+        '[[package]]\nname = "app"\nversion = "0.1.0"\nsource = { virtual = "." }\n\n'
+        '[[package]]\nname = "multidict"\nversion = "6.7.1"\nsource = { registry = "https://pypi.org/simple" }\n')
+    assert lock_pins(tmp_path) == ("uv.lock", {"multidict": ["6.7.1"]})
+    (tmp_path / "uv.lock").unlink()
+    assert lock_pins(tmp_path) == ("", {})

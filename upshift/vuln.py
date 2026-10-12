@@ -1,6 +1,7 @@
 """Vulnerability trigger: audit what the project installs with pip-audit (OSV) and pick the smallest fix."""
 
 import json
+from pathlib import Path
 
 import neatlogs
 from packaging.utils import canonicalize_name
@@ -8,9 +9,9 @@ from packaging.version import InvalidVersion, Version
 
 from . import tracing
 from .state import RUNS, RunState
-from .workspace import Workspace, sh, tail
+from .workspace import SKIP_DIRS, Workspace, lock_pins, sh, tail
 
-def scan(source: str, python: str, stamp: str) -> list[RunState]:
+def scan(source: str, python: str, stamp: str, only: str | None = None) -> list[RunState]:
     """Install the repo once, audit it, and return one vuln job per package that has a fixed release."""
     scan_id = f"{stamp}-scan"
     ws = Workspace(RUNS / scan_id, python=python)
@@ -18,16 +19,30 @@ def scan(source: str, python: str, stamp: str) -> list[RunState]:
         with neatlogs.trace("upshift.scan", kind="WORKFLOW") as root:
             root.set_attribute("upshift.repo", source)
             ws.clone(source, "upshift/scan")
+            if not declares_dependencies(ws.repo):
+                # a monorepo root installs nothing but pytest, and "nothing to fix" would be a false all-clear
+                found = projects_below(ws.repo)
+                raise SystemExit("[upshift] no Python dependencies are declared at the repo root, so there is "
+                                 "nothing to audit. " + (f"Python projects found in: {', '.join(found)}. Upshift "
+                                 "audits one project at a time; monorepo subfolders aren't supported yet."
+                                 if found else "No Python project was found."))
             ws.install()
             findings = audit(ws)
             jobs = []
-            for package, found in sorted(findings.items()):
+            lockfile, _ = lock_pins(ws.repo)
+            for package, found in sorted(findings.items(), key=lambda kv: (not kv[1]["installed"], kv[0])):
                 found["target"] = fix_version(found["version"], found["advisories"])
                 ids = ", ".join(label(a, info["aliases"]) for a, info in found["advisories"].items())
                 if not found["target"]:
                     print(f"[upshift] {package} {found['version']}: no fixed release yet for {ids}")
                     continue
+                if not found["installed"]:
+                    print(f"[upshift] {package} {found['version']} -> {found['target']}: {ids} "
+                          f"(pinned in {lockfile} for optional extras the tests don't install; update the lock)")
+                    continue
                 print(f"[upshift] {package} {found['version']} -> {found['target']}: {ids}")
+                if only and canonicalize_name(only) != package:
+                    continue
                 jobs.append(RunState(run_id=f"{stamp}-vuln-{package}", kind="vuln", source=source,
                                      package=package, wanted=found["target"], python=python,
                                      advisories=found["advisories"]))
@@ -38,21 +53,51 @@ def scan(source: str, python: str, stamp: str) -> list[RunState]:
     return jobs
 
 
+def declares_dependencies(repo: Path) -> bool:
+    return any((repo / name).is_file() for name in ("pyproject.toml", "setup.py", "setup.cfg")) or any(
+        repo.glob("requirements*.txt"))
+
+
+def projects_below(repo: Path, depth: int = 3) -> list[str]:
+    found = set()
+    for path in repo.rglob("*"):
+        rel = path.relative_to(repo)
+        if len(rel.parts) > depth or any(part in SKIP_DIRS or part.startswith(".") for part in rel.parts):
+            continue
+        if path.is_file() and (path.name in ("pyproject.toml", "setup.py") or path.match("requirements*.txt")):
+            found.add(str(rel.parent))
+    return sorted(found)
+
+
 @neatlogs.span(kind="TOOL", tool_name="pip_audit")
 def audit(ws: Workspace) -> dict[str, dict]:
-    """Vulnerable packages in the workspace venv, including transitive ones.
+    """Vulnerable packages: everything installed in the workspace venv, plus everything the lockfile pins.
 
-    Audits the exact installed versions (`uv pip freeze`), so no second dependency resolution can disagree
-    with what the tests run against.
+    The installed versions (`uv pip freeze`) are what the tests run against. The lockfile adds what the default
+    install leaves out (optional extras): on a real project, auditing only the venv missed 36 vulnerable locked packages.
+    Each finding says whether it is installed; only installed ones can be fixed and verified by the tests.
     """
-    frozen = ws.root / "frozen.txt"
-    frozen.write_text(ws.freeze())
-    out = sh(["uvx", "pip-audit", "-r", str(frozen), "--no-deps", "--disable-pip",
-              "--format", "json", "--progress-spinner", "off"])
-    if out.returncode not in (0, 1):  # 1 means vulnerabilities were found
-        raise RuntimeError(f"pip-audit failed:\n{tail(out.stderr, 3000)}")
-    findings = parse_audit(json.loads(out.stdout))
-    tracing.annotate(vulnerable_packages=len(findings),
+    installed = {canonicalize_name(line.split("==")[0]): line.split("==")[1]
+                 for line in ws.freeze().splitlines() if "==" in line}
+    lockfile, locked = lock_pins(ws.repo)
+    versions = {name: [version] for name, version in installed.items()}
+    for name, pinned in locked.items():
+        versions.setdefault(name, []).extend(v for v in pinned if v not in versions.get(name, []))
+    findings: dict[str, dict] = {}
+    # pip-audit takes one version per name, so audit in layers: installed (or first locked) versions, then the rest
+    for layer in range(max((len(v) for v in versions.values()), default=0)):
+        pins = ws.root / f"audit-{layer}.txt"
+        pins.write_text("".join(f"{n}=={v[layer]}\n" for n, v in sorted(versions.items()) if len(v) > layer))
+        out = sh(["uvx", "pip-audit", "-r", str(pins), "--no-deps", "--disable-pip",
+                  "--format", "json", "--progress-spinner", "off"])
+        if out.returncode not in (0, 1):  # 1 means vulnerabilities were found
+            raise RuntimeError(f"pip-audit failed:\n{tail(out.stderr, 3000)}")
+        for name, found in parse_audit(json.loads(out.stdout)).items():
+            found["installed"] = installed.get(name) == found["version"]
+            found["source"] = "installed" if found["installed"] else lockfile
+            if name not in findings or found["installed"]:
+                findings[name] = found
+    tracing.annotate(vulnerable_packages=len(findings), lockfile=lockfile or "none",
                      advisories=sum(len(f["advisories"]) for f in findings.values()))
     return findings
 
