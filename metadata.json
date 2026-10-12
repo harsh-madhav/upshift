@@ -3,9 +3,16 @@
   "checkpoint_id": "01M4QZKRW5JEGCR6W9YXBG26T6",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 3,
+  "checkpoints_count": 9,
   "files_touched": [
-    "upshift/cli.py"
+    "hackathon.md",
+    "tests/test_vuln.py",
+    "tests/test_workspace.py",
+    "upshift/cli.py",
+    "upshift/pipeline.py",
+    "upshift/pyversion.py",
+    "upshift/vuln.py",
+    "upshift/workspace.py"
   ],
   "sessions": [
     {
@@ -14,13 +21,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 190,
-    "cache_creation_tokens": 396993,
-    "cache_read_tokens": 16196147,
-    "output_tokens": 117044,
-    "api_call_count": 94
+    "input_tokens": 284,
+    "cache_creation_tokens": 454127,
+    "cache_read_tokens": 29822220,
+    "output_tokens": 155570,
+    "api_call_count": 141
   }
 }
